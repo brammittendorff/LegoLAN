@@ -1,0 +1,18 @@
+# Wekelijks: vraag gebruikers zonder nickname (max eens per 30 dagen per
+# persoon) om die in te vullen. Roept een beveiligd endpoint op de site aan.
+name: Nickname-herinneringen
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # elke maandag 09:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Roep het herinnerings-endpoint aan
+        run: |
+          resp=$(curl -sf -X POST https://legolan.nl/api/cron/nickname-reminder \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}")
+          echo "resultaat: $resp"

@@ -13,6 +13,8 @@ export interface Env {
   MAILPIT_URL?: string
   /** Geheim voor inloglinks + sessiecookies (openssl rand -hex 32) */
   AUTH_SECRET?: string
+  /** Gedeeld geheim waarmee de cron-workflows endpoints mogen aanroepen */
+  CRON_SECRET?: string
   /** Wasabi S3 met de foto's; map-per-editie (2024/, 2025/, ...) */
   WASABI_ENDPOINT?: string
   WASABI_REGION?: string

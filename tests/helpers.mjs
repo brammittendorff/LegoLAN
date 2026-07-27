@@ -36,6 +36,7 @@ export async function startServer({ port, mollieKey }) {
       '--persist-to', persist,
       '--binding', `MOLLIE_API_KEY=${mollieKey}`,
       '--binding', `AUTH_SECRET=${AUTH_SECRET}`,
+      '--binding', 'CRON_SECRET=ci-cron-secret',
     ],
     { stdio: process.env.TEST_DEBUG ? 'inherit' : 'ignore', detached: true },
   )

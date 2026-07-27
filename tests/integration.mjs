@@ -248,6 +248,35 @@ try {
     assert(lijst.data.users.some((u) => u.email === 'spook@test.nl'), 'rij aangemaakt via profielbezoek')
   })
 
+  await test('polo-opdruk wordt nickname als die nog leeg is', async () => {
+    await koop(
+      [{ productId: 'polo-2026', size: 'M', customName: 'PoloNick', qty: 1 }],
+      'polokoper@test.nl',
+      ['Polo', 'Koper'],
+    )
+    const r = await jsonReq(base, '/api/me', { cookie: sessionCookie('polokoper@test.nl') })
+    assertEq(r.data.nickname, 'PoloNick', 'opdruk als nickname')
+  })
+
+  await test('nickname-herinnering: beveiligd, verstuurt en herhaalt niet direct', async () => {
+    let r = await jsonReq(base, '/api/cron/nickname-reminder', { method: 'POST' })
+    assertEq(r.status, 403, 'zonder sleutel dicht')
+
+    const res1 = await fetch(`${base}/api/cron/nickname-reminder`, {
+      method: 'POST',
+      headers: { 'x-cron-key': 'ci-cron-secret' },
+    })
+    const d1res = await res1.json()
+    assert(d1res.sent >= 1, 'minstens één herinnering verstuurd')
+
+    const res2 = await fetch(`${base}/api/cron/nickname-reminder`, {
+      method: 'POST',
+      headers: { 'x-cron-key': 'ci-cron-secret' },
+    })
+    const d2res = await res2.json()
+    assertEq(d2res.sent, 0, 'tweede run direct erna stuurt niets')
+  })
+
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
     d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
     const adminCookie = sessionCookie('admin@test.nl')

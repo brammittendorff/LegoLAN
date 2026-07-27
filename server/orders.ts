@@ -112,6 +112,16 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
     .bind(order.email.toLowerCase(), order.first_name, order.last_name, Date.now())
     .run()
 
+  // Polo besteld met een opdruknaam en nog geen nickname? Dan is dat 'm.
+  const printName = items.find((i) => i.custom_name)?.custom_name
+  if (printName) {
+    await env.DB.prepare(
+      `UPDATE users SET nickname = ? WHERE email = ? AND (nickname IS NULL OR nickname = '')`,
+    )
+      .bind(printName, order.email.toLowerCase())
+      .run()
+  }
+
   if (order.confirmation_sent) return
   const seatUrl = `${origin}/zaal?order=${orderId}`
 
