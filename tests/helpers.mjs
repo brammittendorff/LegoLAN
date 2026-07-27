@@ -1,5 +1,6 @@
 import { execSync, spawn } from 'node:child_process'
 import crypto from 'node:crypto'
+import http from 'node:http'
 import { encrypt } from 'paseto-ts/v4'
 import { mkdtempSync } from 'node:fs'
 import os from 'node:os'
@@ -33,6 +34,17 @@ export async function startServer({ port, mollieKey }) {
     stdio: 'ignore',
     env: { ...process.env, CI: 'true' },
   })
+  // Lokale mail-sink: vangt alles op wat de server via MAILPIT_URL "verstuurt".
+  // Zonder deze binding laadt wrangler .dev.vars en gaat testmail echt via Mailjet
+  // de deur uit (en vreet die de daglimiet van het account op).
+  const mailSink = http.createServer((req, res) => {
+    req.resume()
+    req.on('end', () => {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end('{"ID":"test-sink"}')
+    })
+  })
+  await new Promise((resolve) => mailSink.listen(0, '127.0.0.1', resolve))
   const proc = spawn(
     'npx',
     [
@@ -42,9 +54,13 @@ export async function startServer({ port, mollieKey }) {
       '--binding', `MOLLIE_API_KEY=${mollieKey}`,
       '--binding', `AUTH_SECRET=${AUTH_SECRET}`,
       '--binding', 'CRON_SECRET=ci-cron-secret',
+      '--binding', `MAILPIT_URL=http://127.0.0.1:${mailSink.address().port}`,
+      '--binding', 'MAILJET_API_KEY=',
+      '--binding', 'MAILJET_API_SECRET=',
     ],
     { stdio: process.env.TEST_DEBUG ? 'inherit' : 'ignore', detached: true },
   )
+  proc.mailSink = mailSink
 
   for (let i = 0; i < 90; i++) {
     try {
@@ -60,6 +76,7 @@ export async function startServer({ port, mollieKey }) {
 }
 
 export function stopServer(proc) {
+  proc.mailSink?.close()
   try {
     process.kill(-proc.pid, 'SIGTERM')
   } catch {
