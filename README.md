@@ -108,6 +108,10 @@ plattegrond vrij en telt de voorraad weer op.
   krijgt tijdelijke getekende Wasabi-URLs; de bucket zelf blijft privé.
 - **Formulieren**: contact + nieuwsbrief (Mailjet-lijst "Legolan Contacts",
   id 3318) achter Turnstile.
+- **Admins**: accounts met `role = 'admin'` zien **/admin** ("Backstage"):
+  verkoopcijfers, bestellingen, polo-druklijst en plekken vrijgeven.
+  Iemand admin maken:
+  `npx wrangler d1 execute legolan --remote --command "INSERT INTO users (email, role, updated_at) VALUES ('adres','admin',0) ON CONFLICT(email) DO UPDATE SET role='admin'"`
 
 ## Jaarlijkse restyle (voor de vrijwilliger van volgend jaar)
 

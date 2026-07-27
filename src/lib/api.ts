@@ -5,8 +5,26 @@ export type Profile = {
   firstName: string
   lastName: string
   nickname: string
+  role: 'user' | 'admin'
   editions: number[]
   seats: { edition: number; seatId: string; seatNo: number; nickname: string }[]
+}
+
+export type AdminOverview = {
+  edition: number
+  orders: {
+    id: string
+    createdAt: number
+    name: string
+    email: string
+    amountCents: number
+    status: string
+    items: string | null
+  }[]
+  stats: { productId: string; sold: number; revenueCents: number }[]
+  seats: { seatId: string; nickname: string; name: string; email: string }[]
+  polos: { name: string; email: string; size: string | null; customName: string; qty: number }[]
+  attendees: { edition: number; n: number }[]
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'failed' | 'canceled' | 'expired' | 'refunded'
@@ -81,6 +99,13 @@ export const api = {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
+    }),
+
+  adminOverview: () => req<AdminOverview>('/api/admin/overview'),
+
+  adminReleaseSeat: (seatId: string) =>
+    req<{ ok: true; released: boolean }>(`/api/admin/seat?seatId=${encodeURIComponent(seatId)}`, {
+      method: 'DELETE',
     }),
 
   photos: () =>

@@ -15,6 +15,7 @@ export default function Nav() {
     { to: '/zaal', label: t('De Zaal', 'The Hall') },
     { to: '/fotos', label: t("Foto's", 'Photos') },
     { to: '/contact', label: 'Contact' },
+    ...(user?.role === 'admin' ? [{ to: '/admin', label: 'Backstage' }] : []),
   ]
 
   return (

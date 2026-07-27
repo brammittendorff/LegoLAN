@@ -9,6 +9,7 @@ import Checkout from './pages/Checkout'
 import Zaal from './pages/Zaal'
 import Fotos from './pages/Fotos'
 import Account from './pages/Account'
+import Admin from './pages/Admin'
 import Contact from './pages/Contact'
 import Bedankt from './pages/Bedankt'
 import Oeps from './pages/Oeps'
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/zaal" element={<Zaal />} />
           <Route path="/fotos" element={<Fotos />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/bedankt" element={<Bedankt />} />
           <Route path="/oeps" element={<Oeps />} />

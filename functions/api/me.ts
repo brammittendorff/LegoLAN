@@ -3,7 +3,12 @@ import { editionsForEmail, emailFromRequest } from '../../server/auth'
 import { err, json } from '../../server/http'
 import type { Env } from '../../server/types'
 
-type UserRow = { first_name: string | null; last_name: string | null; nickname: string | null }
+type UserRow = {
+  first_name: string | null
+  last_name: string | null
+  nickname: string | null
+  role: string | null
+}
 
 /** Profiel van de ingelogde bezoeker; onbekende velden vullen we met wat we al weten. */
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -11,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!email) return err('Niet ingelogd.', 401)
 
   const user = await env.DB.prepare(
-    `SELECT first_name, last_name, nickname FROM users WHERE email = ?`,
+    `SELECT first_name, last_name, nickname, role FROM users WHERE email = ?`,
   )
     .bind(email)
     .first<UserRow>()
@@ -84,6 +89,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     firstName,
     lastName,
     nickname,
+    role: user?.role === 'admin' ? 'admin' : 'user',
     editions: await editionsForEmail(env, email),
     seats,
   })

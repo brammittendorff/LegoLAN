@@ -80,6 +80,14 @@ export async function emailFromRequest(env: Env, request: Request): Promise<stri
   return verifyToken(env, decodeURIComponent(match[1]), 'sessie')
 }
 
+/** Is dit adres een beheerder? (users.role = 'admin') */
+export async function isAdmin(env: Env, email: string): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT role FROM users WHERE email = ?`)
+    .bind(email)
+    .first<{ role: string }>()
+  return row?.role === 'admin'
+}
+
 /** Alle edities waar dit adres bij was: import uit WordPress + betaalde orders van nu. */
 export async function editionsForEmail(env: Env, email: string): Promise<number[]> {
   const editions = new Set<number>()
