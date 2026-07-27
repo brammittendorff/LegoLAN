@@ -114,6 +114,9 @@ export const api = {
 
   adminOverview: () => req<AdminOverview>('/api/admin/overview'),
 
+  adminDeleteUser: (email: string) =>
+    req<{ ok: true }>(`/api/admin/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' }),
+
   adminUsers: () =>
     req<{
       users: {

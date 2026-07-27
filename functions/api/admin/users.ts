@@ -20,6 +20,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   return json({ users: rs.results })
 }
 
+/** Account verwijderen (bv. testaccounts). Bestellingen/deelnames blijven staan. */
+export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {
+  const adminEmail = await emailFromRequest(env, request)
+  if (!adminEmail || !(await isAdmin(env, adminEmail))) return err('Geen toegang.', 403)
+
+  const target = new URL(request.url).searchParams.get('email')?.trim().toLowerCase() ?? ''
+  if (!target) return err('Geen e-mailadres.')
+  if (target === adminEmail) return err('Jezelf verwijderen kan niet.', 409)
+
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM users WHERE email = ?`).bind(target),
+    env.DB.prepare(`DELETE FROM email_aliases WHERE user_email = ?`).bind(target),
+  ])
+  return json({ ok: true })
+}
+
 type Body = {
   email?: string
   role?: string

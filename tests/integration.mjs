@@ -303,6 +303,17 @@ try {
     assert((res2.headers.get('location') ?? '').includes('fout=link'), 'oude loginlink ongeldig')
   })
 
+  await test('admin kan een account verwijderen (maar niet zichzelf)', async () => {
+    const adminCookie = await sessionCookie('admin@test.nl')
+    let r = await jsonReq(base, '/api/admin/users?email=admin%40test.nl', { method: 'DELETE', cookie: adminCookie })
+    assertEq(r.status, 409, 'zichzelf verwijderen geweigerd')
+
+    r = await jsonReq(base, '/api/admin/users?email=nieuw%40test.nl', { method: 'DELETE', cookie: adminCookie })
+    assertEq(r.status, 200, 'verwijderd')
+    const lijst = await jsonReq(base, '/api/admin/users', { cookie: adminCookie })
+    assert(!lijst.data.users.some((u) => u.email === 'nieuw@test.nl'), 'weg uit de lijst')
+  })
+
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
     d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
     const adminCookie = await sessionCookie('admin@test.nl')

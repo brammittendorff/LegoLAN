@@ -562,14 +562,35 @@ export default function Admin() {
                               {t('Wijzig', 'Edit')}
                             </button>
                             {u.email !== user.email && (
-                              <button
-                                type="button"
-                                className="btn-ghost ml-2 !px-3 !py-1 text-xs"
-                                disabled={busy === u.email}
-                                onClick={() => void setRoleToggle(u.email, u.role)}
-                              >
-                                {u.role === 'admin' ? t('Rol afnemen', 'Remove admin') : t('Maak admin', 'Make admin')}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-ghost ml-2 !px-3 !py-1 text-xs"
+                                  disabled={busy === u.email}
+                                  onClick={() => void setRoleToggle(u.email, u.role)}
+                                >
+                                  {u.role === 'admin' ? t('Rol afnemen', 'Remove admin') : t('Maak admin', 'Make admin')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-ghost ml-2 !px-3 !py-1 text-xs !border-red-500/40 hover:!border-red-500"
+                                  disabled={busy === u.email}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        t(
+                                          `Account ${u.email} verwijderen? Bestellingen en deelname-historie blijven bewaard; bij een nieuwe login ontstaat het account opnieuw.`,
+                                          `Delete account ${u.email}? Orders and attendance history are kept; a new login recreates the account.`,
+                                        ),
+                                      )
+                                    ) {
+                                      void run(u.email, () => api.adminDeleteUser(u.email), loadUsers)
+                                    }
+                                  }}
+                                >
+                                  {t('Verwijder', 'Delete')}
+                                </button>
+                              </>
                             )}
                           </td>
                         </>

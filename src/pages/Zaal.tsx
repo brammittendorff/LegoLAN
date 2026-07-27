@@ -70,12 +70,23 @@ export default function Zaal() {
     if (!orderId || !user) return
     api
       .order(orderId)
-      .then(setOrder)
+      .then((o) => {
+        setOrder(o)
+        if (o.status !== 'paid') {
+          try {
+            if (localStorage.getItem('legolan-last-order') === orderId) {
+              localStorage.removeItem('legolan-last-order')
+            }
+          } catch {
+            /* prima */
+          }
+        }
+      })
       .catch(() => setOrder(null))
   }, [orderId, user])
 
-  const remaining =
-    order?.status === 'paid' ? order.seatQuota - order.seatsClaimed.length : 0
+  const paidOrder = order?.status === 'paid' ? order : null
+  const remaining = paidOrder ? paidOrder.seatQuota - paidOrder.seatsClaimed.length : 0
   const canClaim = remaining > 0
 
   const claim = async (cell: Cell) => {
@@ -117,7 +128,7 @@ export default function Zaal() {
     }
   }
 
-  const mySeats = new Set(order?.seatsClaimed.map((s) => s.seatId) ?? [])
+  const mySeats = new Set(paidOrder?.seatsClaimed.map((s) => s.seatId) ?? [])
 
   const release = async (cell: Cell) => {
     if (!orderId || !cell.seatId) return
@@ -273,7 +284,7 @@ export default function Zaal() {
         </div>
       )}
 
-      {order?.status === 'paid' && !canClaim && mySeats.size > 0 && (
+      {paidOrder && !canClaim && mySeats.size > 0 && (
         <p className="mt-8 text-center text-smoke">
           {t(
             'Al je plekken zijn geclaimd (goud op de kaart). Verkeerd geklikt? Klik op je gouden plek om hem vrij te geven.',
@@ -282,15 +293,20 @@ export default function Zaal() {
         </p>
       )}
 
-      {!order && (
+      {user && !paidOrder && (
         <p className="mt-8 text-center text-sm text-smoke/70">
           {t(
-            'Ticket gekocht? Open de link uit je bevestigingsmail (of van de bedankt-pagina) om je plek te kiezen. Nog geen ticket?',
-            'Bought a ticket? Open the link from your confirmation email (or the thank-you page) to pick your seat. No ticket yet?',
+            'Nog geen ticket voor deze editie? Dan eerst even langs',
+            'No ticket for this edition yet? First swing by',
           )}{' '}
           <Link to="/shop" className="text-neon hover:underline">
-            {t('De shop is open.', 'The shop is open.')}
+            {t('de shop', 'the shop')}
           </Link>
+          .{' '}
+          {t(
+            'Al gekocht? Open dan de link uit je bevestigingsmail (of de bedankt-pagina) om je plek te kiezen.',
+            'Already bought one? Open the link from your confirmation email (or the thank-you page) to pick your seat.',
+          )}
         </p>
       )}
 
