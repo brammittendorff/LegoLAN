@@ -103,6 +103,15 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
       .run()
   }
 
+  // Elke betalende koper krijgt een account-rij (zichtbaar in Backstage;
+  // een bestaand profiel wordt nooit overschreven).
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO users (email, first_name, last_name, role, updated_at)
+     VALUES (?, ?, ?, 'user', ?)`,
+  )
+    .bind(order.email.toLowerCase(), order.first_name, order.last_name, Date.now())
+    .run()
+
   if (order.confirmation_sent) return
   const seatUrl = `${origin}/zaal?order=${orderId}`
 

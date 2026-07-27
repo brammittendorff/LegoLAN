@@ -1,0 +1,43 @@
+# Elke nacht een dump van de productie-database naar de Wasabi-bucket
+# (map backups/). Een lifecycle-regel op de bucket gooit backups ouder dan
+# 30 dagen automatisch weg; de foto-mappen blijven onaangeroerd.
+#
+# Terugzetten van een backup:
+#   aws s3 cp s3://legolan/backups/legolan-<datum>.sql.gz . --endpoint-url https://s3.eu-central-1.wasabisys.com
+#   gunzip legolan-<datum>.sql.gz
+#   npx wrangler d1 execute legolan --remote --file legolan-<datum>.sql
+name: Database-backup naar Wasabi
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # elke nacht om 03:00 UTC (05:00 NL)
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Exporteer D1-database
+        run: npx wrangler d1 export legolan --remote --output=backup.sql
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Upload naar Wasabi
+        run: |
+          gzip backup.sql
+          aws s3 cp backup.sql.gz "s3://legolan/backups/legolan-$(date +%F).sql.gz" \
+            --endpoint-url https://s3.eu-central-1.wasabisys.com
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.WASABI_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.WASABI_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
