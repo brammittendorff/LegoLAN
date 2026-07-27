@@ -229,6 +229,53 @@ try {
     assert(r.data.logins.some((p) => p.n >= 1), 'login geteld in dagreeks')
   })
 
+  await test('backstage: plek toewijzen aan een e-mailadres', async () => {
+    const adminCookie = await sessionCookie('admin@test.nl')
+
+    // Zonder bestelling: plek komt op naam te staan.
+    let r = await jsonReq(base, '/api/admin/seat', {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { seatId: 'r0c7', email: 'Gast@test.nl', nickname: 'Gastje' },
+    })
+    assertEq(r.status, 200, 'toewijzen zonder order')
+    assertEq(r.data.viaOrder, false, 'niet via order')
+
+    // Zichtbaar op de plattegrond en in het overzicht (als toegewezen).
+    r = await jsonReq(base, '/api/seats', { cookie })
+    assert(r.data.seats.some((s) => s.seatId === 'r0c7' && s.nickname === 'Gastje'), 'op de kaart')
+    r = await jsonReq(base, '/api/admin/overview', { cookie: adminCookie })
+    const rij = r.data.seats.find((s) => s.seatId === 'r0c7')
+    assert(rij && rij.email === 'gast@test.nl' && rij.assigned, 'toegewezen in overzicht')
+
+    // De eigenaar ziet de plek op het eigen account.
+    r = await jsonReq(base, '/api/me', { cookie: await sessionCookie('gast@test.nl') })
+    assert(r.data.seats.some((s) => s.seatId === 'r0c7'), 'plek bij eigen account')
+
+    // Bezette plek toewijzen kan niet; user mag het endpoint niet aanraken.
+    r = await jsonReq(base, '/api/admin/seat', {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { seatId: 'r0c7', email: 'ander@test.nl' },
+    })
+    assertEq(r.status, 409, 'bezette plek geweigerd')
+    r = await jsonReq(base, '/api/admin/seat', {
+      method: 'POST',
+      cookie,
+      body: { seatId: 'r0c8', email: 'gast@test.nl' },
+    })
+    assertEq(r.status, 403, 'user geweigerd')
+
+    // Vrijgeven door de admin werkt ook voor toegewezen plekken.
+    const res = await fetch(`${base}/api/admin/seat?seatId=r0c7`, {
+      method: 'DELETE',
+      headers: { cookie: adminCookie },
+    })
+    assertEq(res.status, 200, 'vrijgeven')
+    r = await jsonReq(base, '/api/seats', { cookie })
+    assert(!r.data.seats.some((s) => s.seatId === 'r0c7'), 'plek weer vrij')
+  })
+
   await test('backstage: pending annuleren, betaald niet', async () => {
     d1(
       persist,

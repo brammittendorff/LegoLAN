@@ -57,8 +57,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     )
   } else if (type === 'seats') {
     const rs = await env.DB.prepare(
-      `SELECT s.seat_id, s.nickname, o.name, o.email
-         FROM seats s JOIN orders o ON o.id = s.order_id
+      `SELECT s.seat_id, s.nickname,
+              COALESCE(o.name, trim(coalesce(u.first_name, '') || ' ' || coalesce(u.last_name, ''))) AS name,
+              COALESCE(o.email, s.owner_email) AS email
+         FROM seats s
+         LEFT JOIN orders o ON o.id = s.order_id
+         LEFT JOIN users u ON u.email = s.owner_email
         WHERE s.edition = ? ORDER BY s.claimed_at`,
     )
       .bind(EDITION_YEAR)

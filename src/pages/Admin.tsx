@@ -24,6 +24,7 @@ export default function Admin() {
   const [busy, setBusy] = useState('')
   const [newAdmin, setNewAdmin] = useState('')
   const [poloEdits, setPoloEdits] = useState<Record<number, { customName: string; size: string }>>({})
+  const [assign, setAssign] = useState({ seatId: '', email: '', nickname: '' })
   const [userEdits, setUserEdits] = useState<Record<string, UserEdit>>({})
 
   const isAdmin = user?.role === 'admin'
@@ -221,7 +222,73 @@ export default function Admin() {
 
       {/* ------------------------------------------------ Plekken */}
       {tab === 'plekken' && data && (
-        <TableSection title={`${t('Plekken', 'Seats')} (${data.seats.length})`} exportType="seats">
+        <>
+          <section className="mt-10">
+            <div className="card-velvet mx-auto max-w-2xl p-6">
+              <p className="text-sm text-smoke">
+                {t(
+                  'Plek toewijzen aan een e-mailadres. Met een betaalde bestelling telt de plek mee in het tegoed; zonder staat hij gewoon op naam.',
+                  'Assign a seat to an email address. With a paid order the seat counts against their quota; without one it is simply held in their name.',
+                )}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <select
+                  className="input !w-28 !py-2"
+                  value={assign.seatId}
+                  onChange={(e) => setAssign((a) => ({ ...a, seatId: e.target.value }))}
+                >
+                  <option value="">{t('Plek...', 'Seat...')}</option>
+                  {buildRoom()
+                    .flat()
+                    .filter((c) => c.seatId && !data.seats.some((s) => s.seatId === c.seatId))
+                    .sort((a, b) => (a.seatNo ?? 0) - (b.seatNo ?? 0))
+                    .map((c) => (
+                      <option key={c.seatId} value={c.seatId!}>
+                        #{c.seatNo}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  type="email"
+                  className="input min-w-48 flex-1"
+                  placeholder="iemand@voorbeeld.nl"
+                  value={assign.email}
+                  onChange={(e) => setAssign((a) => ({ ...a, email: e.target.value }))}
+                />
+                <input
+                  className="input !w-36"
+                  maxLength={20}
+                  placeholder={t('Nickname (optie)', 'Nickname (optional)')}
+                  value={assign.nickname}
+                  onChange={(e) => setAssign((a) => ({ ...a, nickname: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="btn-neon !px-4 !py-2 text-sm"
+                  disabled={!assign.seatId || !assign.email.includes('@') || busy !== ''}
+                  onClick={() =>
+                    void run(
+                      'assign',
+                      () =>
+                        api.adminAssignSeat({
+                          seatId: assign.seatId,
+                          email: assign.email,
+                          nickname: assign.nickname || undefined,
+                        }),
+                      async () => {
+                        setAssign({ seatId: '', email: '', nickname: '' })
+                        await load()
+                      },
+                    )
+                  }
+                >
+                  {t('Toewijzen', 'Assign')}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <TableSection title={`${t('Plekken', 'Seats')} (${data.seats.length})`} exportType="seats">
           <table className="card-velvet w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="font-label text-[11px] uppercase tracking-widest text-smoke/60">
@@ -237,7 +304,13 @@ export default function Admin() {
                   <td className="px-3 py-2 font-label text-bulb">#{seatNo(s.seatId)}</td>
                   <td className="px-3 py-2 text-milk">{s.nickname}</td>
                   <td className="px-3 py-2 text-smoke/70">
-                    {s.name} · {s.email}
+                    {s.name ? `${s.name} · ` : ''}
+                    {s.email}
+                    {s.assigned ? (
+                      <span className="ml-2 font-label text-[10px] uppercase tracking-widest text-bulb">
+                        {t('toegewezen', 'assigned')}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">
                     <button
@@ -256,7 +329,8 @@ export default function Admin() {
               )}
             </tbody>
           </table>
-        </TableSection>
+          </TableSection>
+        </>
       )}
 
       {/* ------------------------------------------------ Polo's */}

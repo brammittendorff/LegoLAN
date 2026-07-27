@@ -22,7 +22,7 @@ export type AdminOverview = {
     items: string | null
   }[]
   stats: { productId: string; sold: number; revenueCents: number }[]
-  seats: { seatId: string; nickname: string; name: string; email: string }[]
+  seats: { seatId: string; nickname: string; name: string; email: string; assigned: number }[]
   polos: {
     itemId: number
     name: string
@@ -163,6 +163,9 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     }),
+
+  adminAssignSeat: (payload: { seatId: string; email: string; nickname?: string }) =>
+    post<{ ok: true; viaOrder: boolean }>('/api/admin/seat', payload),
 
   adminReleaseSeat: (seatId: string) =>
     req<{ ok: true; released: boolean }>(`/api/admin/seat?seatId=${encodeURIComponent(seatId)}`, {
