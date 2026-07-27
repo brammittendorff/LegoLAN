@@ -6,6 +6,7 @@ import { getProduct, linePriceCents } from '../../shared/products'
 import { euro } from '../lib/money'
 import { api } from '../lib/api'
 import { useLang } from '../lib/i18n'
+import Turnstile from '../components/Turnstile'
 
 export default function Checkout() {
   const { items, totalCents } = useCart()
@@ -13,6 +14,7 @@ export default function Checkout() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const { user } = useAuth()
@@ -51,6 +53,7 @@ export default function Checkout() {
         firstName,
         lastName,
         email,
+        turnstileToken: token,
         items: items.map(({ productId, size, customName, qty }) => ({ productId, size, customName, qty })),
       })
       window.location.href = checkoutUrl
@@ -144,9 +147,11 @@ export default function Checkout() {
           />
         </div>
 
+        <Turnstile onToken={setToken} />
+
         {error && <p className="text-sm text-neon-soft">{error}</p>}
 
-        <button type="submit" className="btn-neon w-full" disabled={busy}>
+        <button type="submit" className="btn-neon w-full" disabled={busy || !token}>
           {busy ? t('Momentje...', 'One moment...') : `${t('Betalen', 'Pay')} · ${euro(totalCents)}`}
         </button>
         <p className="text-center text-xs text-smoke/60">

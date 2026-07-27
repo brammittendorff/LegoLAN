@@ -31,6 +31,14 @@ function fromB64url(s: string): Uint8Array | null {
   }
 }
 
+/** Constante-tijd-vergelijking tegen timing-aanvallen op handtekeningen. */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 async function signPart(env: Env, data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -52,7 +60,7 @@ export async function createToken(env: Env, email: string, kind: TokenKind, ttlM
 export async function verifyToken(env: Env, token: string, kind: TokenKind): Promise<string | null> {
   const [body, sig] = token.split('.')
   if (!body || !sig) return null
-  if ((await signPart(env, body)) !== sig) return null
+  if (!safeEqual(await signPart(env, body), sig)) return null
   const bytes = fromB64url(body)
   if (!bytes) return null
   try {

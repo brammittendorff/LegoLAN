@@ -21,7 +21,7 @@ const { proc, persist, base } = await startServer({ port: PORT, mollieKey: 'fake
 const koop = (items, email = 'koper@test.nl', naam = ['Test', 'Koper']) =>
   jsonReq(base, '/api/checkout', {
     method: 'POST',
-    body: { firstName: naam[0], lastName: naam[1], email, items },
+    body: { firstName: naam[0], lastName: naam[1], email, turnstileToken: 't', items },
   })
 
 const orderIdVan = (checkoutResp) => checkoutResp.data.checkoutUrl.split('order=')[1]
@@ -51,7 +51,7 @@ try {
   await test('checkout weigert kapotte naam/e-mail', async () => {
     const r = await jsonReq(base, '/api/checkout', {
       method: 'POST',
-      body: { firstName: 'X', lastName: 'Y', email: 'geen-mail', items: [{ productId: 'ticket-weekend-2026', qty: 1 }] },
+      body: { firstName: 'X', lastName: 'Y', email: 'geen-mail', turnstileToken: 't', items: [{ productId: 'ticket-weekend-2026', qty: 1 }] },
     })
     assertEq(r.status, 400, 'status')
   })

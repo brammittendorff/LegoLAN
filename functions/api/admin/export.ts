@@ -10,7 +10,10 @@ import type { Env } from '../../../server/types'
  */
 
 const csvCell = (value: unknown): string => {
-  const s = String(value ?? '')
+  let s = String(value ?? '')
+  // Formule-injectie in Excel voorkomen: cellen die met =, +, -, @ of een
+  // tab beginnen krijgen een apostrof, dan behandelt Excel ze als tekst.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
   return /[";\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
 }
 

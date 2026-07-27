@@ -1,4 +1,5 @@
-import { renderEmail } from '../../../server/emailTemplate'
+import { safeEqual } from '../../../server/auth'
+import { escapeHtml, renderEmail } from '../../../server/emailTemplate'
 import { err, json } from '../../../server/http'
 import { sendMail } from '../../../server/mailjet'
 import type { Env } from '../../../server/types'
@@ -13,7 +14,7 @@ const BATCH = 25
  * ingevuld een vriendelijk duwtje richting /account.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.CRON_SECRET || request.headers.get('x-cron-key') !== env.CRON_SECRET) {
+  if (!env.CRON_SECRET || !safeEqual(request.headers.get('x-cron-key') ?? '', env.CRON_SECRET)) {
     return err('Geen toegang.', 403)
   }
 
@@ -46,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           'Geen zin? Ook prima, dan vragen we het over een tijdje nog een keertje.',
         ].join('\n'),
         html: renderEmail({
-          heading: `${aanhef}, hoe heet jij eigenlijk?`,
+          heading: `${escapeHtml(aanhef)}, hoe heet jij eigenlijk?`,
           bodyHtml: `
             <p style="margin:0">Je account heeft nog geen nickname - en dat is toch de naam waarmee je op de plattegrond (en eventueel je polo) pronkt. Invullen duurt tien seconden.</p>
             <p style="margin:16px 0 0 0;font-size:12px;opacity:0.75">Geen zin? Ook prima, dan vragen we het over een tijdje nog een keertje.</p>`,

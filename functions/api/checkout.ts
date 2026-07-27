@@ -9,12 +9,14 @@ import {
 import { err, json } from '../../server/http'
 import { createMolliePayment } from '../../server/mollie'
 import { bookedPerPoolDay, expireStalePending, markOrderPaid, soldCounts } from '../../server/orders'
+import { verifyTurnstile } from '../../server/turnstile'
 import type { Env } from '../../server/types'
 
 type Body = {
   firstName?: string
   lastName?: string
   email?: string
+  turnstileToken?: string
   items?: { productId?: string; size?: string; customName?: string; qty?: number }[]
 }
 
@@ -35,6 +37,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (lastName.length < 2 || lastName.length > 40) return err('Vul je achternaam in.')
   if (!EMAIL_RE.test(email)) return err('Vul een geldig e-mailadres in.')
   const name = `${firstName} ${lastName}`
+
+  // Anti-bot: zonder Turnstile zou een script de hele voorraad in
+  // pending-reserveringen kunnen gijzelen.
+  const human = await verifyTurnstile(
+    env,
+    body.turnstileToken ?? '',
+    request.headers.get('cf-connecting-ip') ?? undefined,
+  )
+  if (!human) return err('De spamcheck vertrouwt je niet. Probeer het opnieuw.', 403)
   if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > 20) {
     return err('Je mandje is leeg of te vol.')
   }

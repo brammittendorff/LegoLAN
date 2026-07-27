@@ -36,6 +36,7 @@ try {
         firstName: 'End',
         lastName: 'Toend',
         email: EMAIL,
+        turnstileToken: 't',
         items: [{ productId: 'ticket-weekend-2026', qty: 1 }],
       },
     })

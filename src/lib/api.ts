@@ -69,6 +69,7 @@ export const api = {
     firstName: string
     lastName: string
     email: string
+    turnstileToken: string
     items: { productId: string; size?: string; customName?: string; qty: number }[]
   }) => post<{ checkoutUrl: string }>('/api/checkout', payload),
 
