@@ -115,8 +115,8 @@ export const PRODUCTS: readonly Product[] = [
     id: 'diner-zaterdag-2026',
     name: { nl: 'Luxe Diner (zaterdagavond)', en: 'Deluxe Dinner (Saturday night)' },
     tagline: {
-      nl: 'Een luxe diner, zoals je van een echte club verwacht. De show? Die komt erna.',
-      en: 'A deluxe dinner, as you would expect at a proper club. The show comes after.',
+      nl: 'Een luxe diner, zoals je van een echte club verwacht.',
+      en: 'A deluxe dinner, as you would expect at a proper club.',
     },
     priceCents: 1800,
     type: 'extra',

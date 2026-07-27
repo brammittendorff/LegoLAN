@@ -75,6 +75,11 @@ export const api = {
 
   order: (id: string) => req<OrderInfo>(`/api/order/${encodeURIComponent(id)}`),
 
+  myOrders: () =>
+    req<{
+      orders: { id: string; seatQuota: number; seatsClaimed: { seatId: string; nickname: string }[] }[]
+    }>('/api/my/orders'),
+
   seats: () => req<{ seats: { seatId: string; nickname: string }[] }>('/api/seats'),
 
   claimSeat: (payload: { orderId: string; seatId: string; nickname: string }) =>

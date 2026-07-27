@@ -49,11 +49,6 @@ export default function Bedankt() {
     if (order?.status === 'paid' && orderId && !cleared.current) {
       cleared.current = true
       clear()
-      try {
-        localStorage.setItem('legolan-last-order', orderId)
-      } catch {
-        /* geen ramp */
-      }
     }
   }, [order?.status, orderId, clear])
 

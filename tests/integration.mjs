@@ -314,6 +314,18 @@ try {
     assert(!lijst.data.users.some((u) => u.email === 'nieuw@test.nl'), 'weg uit de lijst')
   })
 
+  await test('mijn bestellingen zijn sessiegebonden (geen lek tussen accounts)', async () => {
+    const r = await jsonReq(base, '/api/my/orders', { cookie })
+    assert(r.data.orders.length >= 1, 'koper ziet eigen order')
+    assert(r.data.orders[0].seatsClaimed.length >= 1, 'met geclaimde plek')
+
+    const vreemde = await jsonReq(base, '/api/my/orders', { cookie: await sessionCookie('vreemdeling@test.nl') })
+    assertEq(vreemde.data.orders.length, 0, 'ander account ziet niets')
+
+    const anon = await jsonReq(base, '/api/my/orders')
+    assertEq(anon.status, 401, 'anoniem dicht')
+  })
+
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
     d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
     const adminCookie = await sessionCookie('admin@test.nl')
