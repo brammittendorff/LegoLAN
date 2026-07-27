@@ -110,6 +110,25 @@ export const api = {
 
   adminOverview: () => req<AdminOverview>('/api/admin/overview'),
 
+  adminUsers: () =>
+    req<{
+      users: {
+        email: string
+        firstName: string | null
+        lastName: string | null
+        nickname: string | null
+        role: 'user' | 'admin'
+        editions: string | null
+      }[]
+    }>('/api/admin/users'),
+
+  adminSetRole: (payload: { email: string; role: 'user' | 'admin' }) =>
+    req<{ ok: true }>('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
   adminReleaseSeat: (seatId: string) =>
     req<{ ok: true; released: boolean }>(`/api/admin/seat?seatId=${encodeURIComponent(seatId)}`, {
       method: 'DELETE',

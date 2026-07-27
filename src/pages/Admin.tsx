@@ -16,6 +16,10 @@ export default function Admin() {
   const [busyOrder, setBusyOrder] = useState('')
   const [poloEdits, setPoloEdits] = useState<Record<number, { customName: string; size: string }>>({})
   const [busyPolo, setBusyPolo] = useState(0)
+  const [tab, setTab] = useState<'verkoop' | 'gebruikers'>('verkoop')
+  const [users, setUsers] = useState<Awaited<ReturnType<typeof api.adminUsers>>['users'] | null>(null)
+  const [newAdmin, setNewAdmin] = useState('')
+  const [busyUser, setBusyUser] = useState('')
 
   const isAdmin = user?.role === 'admin'
 
@@ -25,9 +29,37 @@ export default function Admin() {
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
 
+  const loadUsers = () =>
+    api
+      .adminUsers()
+      .then((r) => setUsers(r.users))
+      .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
+
   useEffect(() => {
-    if (isAdmin) void load()
-  }, [isAdmin])
+    if (!isAdmin) return
+    if (tab === 'verkoop') void load()
+    else void loadUsers()
+  }, [isAdmin, tab])
+
+  const setRole = async (email: string, role: 'user' | 'admin') => {
+    if (
+      role === 'user' &&
+      !window.confirm(t(`${email} de admin-rol afnemen?`, `Remove admin role from ${email}?`))
+    ) {
+      return
+    }
+    setBusyUser(email)
+    setError('')
+    try {
+      await api.adminSetRole({ email, role })
+      setNewAdmin('')
+      await loadUsers()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'fout')
+    } finally {
+      setBusyUser('')
+    }
+  }
 
   const releaseSeat = async (seatId: string) => {
     setBusySeat(seatId)
@@ -104,9 +136,96 @@ export default function Admin() {
         </p>
       </header>
 
+      <div className="mt-8 flex justify-center gap-3">
+        {(['verkoop', 'gebruikers'] as const).map((tabKey) => (
+          <button
+            key={tabKey}
+            type="button"
+            onClick={() => setTab(tabKey)}
+            className={`rounded-full border px-4 py-1.5 font-label text-xs uppercase tracking-widest transition-colors ${
+              tab === tabKey
+                ? 'border-neon text-neon'
+                : 'border-smoke/30 text-smoke hover:border-neon hover:text-milk'
+            }`}
+          >
+            {tabKey === 'verkoop' ? t('Verkoop', 'Sales') : t('Gebruikers', 'Users')}
+          </button>
+        ))}
+      </div>
+
       {error && <p className="mt-8 text-center text-neon-soft">{error}</p>}
 
-      {data && (
+      {tab === 'gebruikers' && (
+        <section className="mt-10">
+          <div className="card-velvet mx-auto max-w-xl p-6">
+            <p className="text-sm text-smoke">
+              {t(
+                'Maak iemand admin op e-mailadres (hoeft nog geen account te hebben):',
+                'Grant admin by email address (an account is not required yet):',
+              )}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="email"
+                className="input flex-1"
+                placeholder="crew@voorbeeld.nl"
+                value={newAdmin}
+                onChange={(e) => setNewAdmin(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-neon !px-4 !py-2 text-sm"
+                disabled={!newAdmin.includes('@') || busyUser !== ''}
+                onClick={() => void setRole(newAdmin, 'admin')}
+              >
+                {t('Maak admin', 'Make admin')}
+              </button>
+            </div>
+          </div>
+
+          <ul className="card-velvet mx-auto mt-6 max-w-3xl divide-y divide-grape/20 p-2 text-sm">
+            {(users ?? []).map((u) => (
+              <li key={u.email} className="flex flex-wrap items-center gap-3 px-2 py-2">
+                <span
+                  className={`font-label text-[10px] uppercase tracking-widest ${
+                    u.role === 'admin' ? 'text-neon' : 'text-smoke/50'
+                  }`}
+                >
+                  {u.role}
+                </span>
+                <span className="text-milk">
+                  {[u.firstName, u.lastName].filter(Boolean).join(' ') || u.nickname || '-'}
+                </span>
+                <span className="flex-1 truncate text-smoke/70">{u.email}</span>
+                {u.editions && (
+                  <span className="font-label text-xs text-bulb">{u.editions}</span>
+                )}
+                {u.email !== user.email && (
+                  <button
+                    type="button"
+                    className="btn-ghost !px-3 !py-1 text-xs"
+                    disabled={busyUser === u.email}
+                    onClick={() => void setRole(u.email, u.role === 'admin' ? 'user' : 'admin')}
+                  >
+                    {u.role === 'admin' ? t('Rol afnemen', 'Remove admin') : t('Maak admin', 'Make admin')}
+                  </button>
+                )}
+              </li>
+            ))}
+            {users !== null && users.length === 0 && (
+              <li className="px-2 py-2 text-smoke/60">{t('Nog geen accounts.', 'No accounts yet.')}</li>
+            )}
+          </ul>
+          <p className="mx-auto mt-3 max-w-3xl text-xs text-smoke/60">
+            {t(
+              'Alleen mensen met een account staan hier; deelnemers zonder account verschijnen zodra ze een keer inloggen of registreren.',
+              'Only people with an account are listed; attendees without one appear once they sign in or register.',
+            )}
+          </p>
+        </section>
+      )}
+
+      {tab === 'verkoop' && data && (
         <>
           <section className="mt-12">
             <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
@@ -134,9 +253,14 @@ export default function Admin() {
           </section>
 
           <section className="mt-12">
-            <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
-              {t('Plekken', 'Seats')} ({data.seats.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
+                {t('Plekken', 'Seats')} ({data.seats.length})
+              </h2>
+              <a href="/api/admin/export?type=seats" className="btn-ghost !px-3 !py-1 text-xs">
+                Export CSV
+              </a>
+            </div>
             <ul className="card-velvet mt-4 divide-y divide-grape/20 p-2 text-sm">
               {data.seats.map((s) => (
                 <li key={s.seatId} className="flex items-center gap-3 px-2 py-2">
@@ -162,9 +286,14 @@ export default function Admin() {
           </section>
 
           <section className="mt-12">
-            <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
-              {t("Polo's (opdruk)", 'Polos (print)')} ({data.polos.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
+                {t("Polo's (opdruk)", 'Polos (print)')} ({data.polos.length})
+              </h2>
+              <a href="/api/admin/export?type=polos" className="btn-ghost !px-3 !py-1 text-xs">
+                Export CSV
+              </a>
+            </div>
             <ul className="card-velvet mt-4 divide-y divide-grape/20 p-2 text-sm">
               {data.polos.map((p) => {
                 const edit = poloEdits[p.itemId]
@@ -235,9 +364,14 @@ export default function Admin() {
           </section>
 
           <section className="mt-12">
-            <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
-              {t('Bestellingen', 'Orders')} ({data.orders.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">
+                {t('Bestellingen', 'Orders')} ({data.orders.length})
+              </h2>
+              <a href="/api/admin/export?type=orders" className="btn-ghost !px-3 !py-1 text-xs">
+                Export CSV
+              </a>
+            </div>
             <div className="mt-4 overflow-x-auto">
               <table className="card-velvet w-full min-w-[640px] text-left text-sm">
                 <thead>
