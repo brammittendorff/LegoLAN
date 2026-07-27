@@ -14,6 +14,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return Response.redirect(`${url.origin}${next}${sep}fout=link`, 302)
   }
 
+  // Iedereen die ooit inlogt krijgt een account-rij (zichtbaar in Backstage).
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO users (email, role, updated_at) VALUES (?, 'user', ?)`,
+  )
+    .bind(email, Date.now())
+    .run()
+
   const session = await createToken(env, email, 'sessie', SESSION_TTL_S * 1000)
   return new Response(null, {
     status: 302,

@@ -177,6 +177,18 @@ try {
     assertEq(r.data.nickname, 'CI-Held', 'nickname bijgewerkt')
   })
 
+  await test('magic-link login maakt account-rij aan (zichtbaar in Backstage)', async () => {
+    const { makeToken } = await import('./helpers.mjs')
+    const loginTok = makeToken('lurker@test.nl', 'login', 60_000)
+    const res = await fetch(`${base}/api/auth/callback?token=${encodeURIComponent(loginTok)}&next=/account`, {
+      redirect: 'manual',
+    })
+    assertEq(res.status, 302, 'callback redirect')
+    d1(persist, "INSERT INTO users (email, role, updated_at) VALUES ('check-admin@test.nl','admin',0) ON CONFLICT(email) DO UPDATE SET role='admin'")
+    const r = await jsonReq(base, '/api/admin/users', { cookie: sessionCookie('check-admin@test.nl') })
+    assert(r.data.users.some((u) => u.email === 'lurker@test.nl'), 'ingelogde bezoeker in gebruikerslijst')
+  })
+
   await test('backstage: dicht voor users, open voor admins', async () => {
     let r = await jsonReq(base, '/api/admin/overview', { cookie })
     assertEq(r.status, 403, 'user geweigerd')
