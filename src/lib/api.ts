@@ -125,7 +125,14 @@ export const api = {
       }[]
     }>('/api/admin/users'),
 
-  adminSetRole: (payload: { email: string; role: 'user' | 'admin' }) =>
+  adminUpdateUser: (payload: {
+    email: string
+    role?: 'user' | 'admin'
+    firstName?: string
+    lastName?: string
+    nickname?: string
+    editions?: number[]
+  }) =>
     req<{ ok: true }>('/api/admin/users', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
