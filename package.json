@@ -8,6 +8,8 @@
     "dev:full": "npm run build && wrangler pages dev",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node tests/integration.mjs",
+    "test:e2e": "node tests/e2e-mollie.mjs",
     "preview": "vite preview",
     "db:migrate:local": "wrangler d1 migrations apply legolan --local",
     "db:migrate:remote": "wrangler d1 migrations apply legolan --remote",
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
+    "playwright": "^1.62.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "wrangler": "^4.114.0"

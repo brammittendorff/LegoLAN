@@ -1,17 +1,19 @@
-# Elke push naar main → build → deploy naar Cloudflare Pages.
+# Elke push naar main → lint + tests (incl. echte Mollie-testbetaling) → deploy.
+# De deploy draait alleen als alle tests groen zijn.
 #
-# Eenmalig instellen in GitHub (repo → Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN   Cloudflare dashboard → My Profile → API Tokens →
-#                          Create Token → template "Cloudflare Pages - Edit"
-#   CLOUDFLARE_ACCOUNT_ID  24603785a17cba5bebd127eb7e1ace41
-name: Deploy naar Cloudflare Pages
+# Repo-secrets:
+#   CLOUDFLARE_API_TOKEN   Pages/Turnstile/D1 Edit-token
+#   CLOUDFLARE_ACCOUNT_ID  account-id
+#   MOLLIE_TEST_API_KEY    Mollie test_-key (voor de e2e-betaaltest)
+#   WASABI_*               voor de nachtelijke database-backup (backup.yml)
+name: Test & deploy naar Cloudflare Pages
 
 on:
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +25,29 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      - run: npm run build
+      - run: npx playwright install chromium --with-deps
+
+      - name: Integratietests (verse database, nepbetalingen)
+        run: npm test
+
+      - name: End-to-end met echte Mollie-testbetaling + plek claimen
+        run: npm run test:e2e
+        env:
+          MOLLIE_TEST_API_KEY: ${{ secrets.MOLLIE_TEST_API_KEY }}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
       - run: npm run build
         env:
           # Publieke Turnstile-sitekey (widget "legolan"); de secret staat als
