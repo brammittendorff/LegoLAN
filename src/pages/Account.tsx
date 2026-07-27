@@ -17,6 +17,12 @@ export default function Account() {
   const [status, setStatus] = useState<'idle' | 'busy' | 'saved' | 'error'>('idle')
   const [error, setError] = useState('')
 
+  // Vers profiel bij het openen van de pagina (plek geclaimd? meteen zichtbaar)
+  useEffect(() => {
+    void refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (user) {
       setFirstName(user.firstName)

@@ -41,7 +41,7 @@ export default function Zaal() {
   })
   const [busySeat, setBusySeat] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
 
   // Ingelogd? Dan vullen we je nickname alvast in.
   useEffect(() => {
@@ -100,6 +100,7 @@ export default function Zaal() {
       await refreshSeats()
       const updated = await api.order(orderId)
       setOrder(updated)
+      void refresh() // profiel bijwerken zodat /account de plek meteen toont
       setNotice(
         t(
           `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
