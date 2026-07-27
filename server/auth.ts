@@ -1,10 +1,12 @@
+import { decrypt, encrypt } from 'paseto-ts/v4'
 import { EDITION_YEAR, PRODUCTS } from '../shared/products'
 import type { Env } from './types'
 
 /*
- * Wachtwoordloos inloggen: een HMAC-getekende token in een maillink (15 min
- * geldig) wordt ingewisseld voor een sessiecookie (30 dagen). Er staat dus
- * nergens een wachtwoord in de database.
+ * Wachtwoordloos inloggen: een PASETO v4.local-token (XChaCha20-Poly1305,
+ * versleuteld én geauthenticeerd) in een maillink (15 min geldig) wordt
+ * ingewisseld voor een sessiecookie (30 dagen). Er staat dus nergens een
+ * wachtwoord in de database en de payload is onleesbaar zonder de sleutel.
  */
 
 const COOKIE = 'legolan_sessie'
@@ -14,24 +16,9 @@ export const SESSION_TTL_S = 30 * 24 * 3600
 const enc = new TextEncoder()
 
 type TokenKind = 'login' | 'sessie'
-type Payload = { e: string; k: TokenKind; x: number }
+type Payload = { e: string; k: TokenKind; exp: string }
 
-function b64url(bytes: Uint8Array): string {
-  let s = ''
-  for (const b of bytes) s += String.fromCharCode(b)
-  return btoa(s).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
-}
-
-function fromB64url(s: string): Uint8Array | null {
-  try {
-    const bin = atob(s.replaceAll('-', '+').replaceAll('_', '/'))
-    return Uint8Array.from(bin, (c) => c.charCodeAt(0))
-  } catch {
-    return null
-  }
-}
-
-/** Constante-tijd-vergelijking tegen timing-aanvallen op handtekeningen. */
+/** Constante-tijd-vergelijking tegen timing-aanvallen op gedeelde geheimen. */
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
@@ -39,34 +26,34 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-async function signPart(env: Env, data: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw',
+/**
+ * PASERK-sleutel (41 bytes: "k4.local." + 32 sleutelbytes), deterministisch
+ * afgeleid van AUTH_SECRET zodat bestaande secrets bruikbaar blijven.
+ */
+async function pasetoKey(env: Env): Promise<Uint8Array> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
     enc.encode(env.AUTH_SECRET || 'dev-secret-verander-mij'),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
   )
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data))
-  return b64url(new Uint8Array(sig))
+  const key = new Uint8Array(41)
+  key.set(enc.encode('k4.local.'), 0)
+  key.set(new Uint8Array(digest), 9)
+  return key
 }
 
 export async function createToken(env: Env, email: string, kind: TokenKind, ttlMs: number): Promise<string> {
-  const payload: Payload = { e: email, k: kind, x: Date.now() + ttlMs }
-  const body = b64url(enc.encode(JSON.stringify(payload)))
-  return `${body}.${await signPart(env, body)}`
+  return encrypt(await pasetoKey(env), {
+    e: email,
+    k: kind,
+    exp: new Date(Date.now() + ttlMs).toISOString(),
+  })
 }
 
 export async function verifyToken(env: Env, token: string, kind: TokenKind): Promise<string | null> {
-  const [body, sig] = token.split('.')
-  if (!body || !sig) return null
-  if (!safeEqual(await signPart(env, body), sig)) return null
-  const bytes = fromB64url(body)
-  if (!bytes) return null
   try {
-    const payload = JSON.parse(new TextDecoder().decode(bytes)) as Payload
+    // decrypt controleert de authenticatie-tag en de exp-claim zelf.
+    const { payload } = await decrypt<Payload>(await pasetoKey(env), token)
     if (payload.k !== kind || typeof payload.e !== 'string') return null
-    if (typeof payload.x !== 'number' || payload.x < Date.now()) return null
     return payload.e
   } catch {
     return null

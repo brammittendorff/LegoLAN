@@ -1,5 +1,6 @@
 import { execSync, spawn } from 'node:child_process'
 import crypto from 'node:crypto'
+import { encrypt } from 'paseto-ts/v4'
 import { mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,16 +8,20 @@ import path from 'node:path'
 /** Zelfde HMAC als de server; de testserver draait met dit secret als binding. */
 export const AUTH_SECRET = 'ci-test-secret'
 
-const b64url = (input) =>
-  Buffer.from(input).toString('base64').replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
-
-export function makeToken(email, kind = 'sessie', ttlMs = 3600_000) {
-  const body = b64url(JSON.stringify({ e: email, k: kind, x: Date.now() + ttlMs }))
-  const sig = b64url(crypto.createHmac('sha256', AUTH_SECRET).update(body).digest())
-  return `${body}.${sig}`
+function pasetoKey() {
+  const digest = crypto.createHash('sha256').update(AUTH_SECRET).digest()
+  return Buffer.concat([Buffer.from('k4.local.'), digest])
 }
 
-export const sessionCookie = (email) => `legolan_sessie=${makeToken(email)}`
+export function makeToken(email, kind = 'sessie', ttlMs = 3600_000) {
+  return encrypt(new Uint8Array(pasetoKey()), {
+    e: email,
+    k: kind,
+    exp: new Date(Date.now() + ttlMs).toISOString(),
+  })
+}
+
+export const sessionCookie = async (email) => `legolan_sessie=${await makeToken(email)}`
 
 /**
  * Start een verse wrangler-instantie met eigen (lege) lokale D1.

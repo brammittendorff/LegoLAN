@@ -84,7 +84,7 @@ try {
     assertEq(r.status, 401, 'status')
   })
 
-  const cookie = sessionCookie('koper@test.nl')
+  const cookie = await sessionCookie('koper@test.nl')
   await test('plattegrond open met sessie', async () => {
     const r = await jsonReq(base, '/api/seats', { cookie })
     assertEq(r.status, 200, 'status')
@@ -179,13 +179,13 @@ try {
 
   await test('magic-link login maakt account-rij aan (zichtbaar in Backstage)', async () => {
     const { makeToken } = await import('./helpers.mjs')
-    const loginTok = makeToken('lurker@test.nl', 'login', 60_000)
+    const loginTok = await makeToken('lurker@test.nl', 'login', 60_000)
     const res = await fetch(`${base}/api/auth/callback?token=${encodeURIComponent(loginTok)}&next=/account`, {
       redirect: 'manual',
     })
     assertEq(res.status, 302, 'callback redirect')
     d1(persist, "INSERT INTO users (email, role, updated_at) VALUES ('check-admin@test.nl','admin',0) ON CONFLICT(email) DO UPDATE SET role='admin'")
-    const r = await jsonReq(base, '/api/admin/users', { cookie: sessionCookie('check-admin@test.nl') })
+    const r = await jsonReq(base, '/api/admin/users', { cookie: await sessionCookie('check-admin@test.nl') })
     assert(r.data.users.some((u) => u.email === 'lurker@test.nl'), 'ingelogde bezoeker in gebruikerslijst')
   })
 
@@ -194,7 +194,7 @@ try {
     assertEq(r.status, 403, 'user geweigerd')
 
     d1(persist, "INSERT INTO users (email, role, updated_at) VALUES ('admin@test.nl','admin',0) ON CONFLICT(email) DO UPDATE SET role='admin'")
-    const adminCookie = sessionCookie('admin@test.nl')
+    const adminCookie = await sessionCookie('admin@test.nl')
     r = await jsonReq(base, '/api/admin/overview', { cookie: adminCookie })
     assertEq(r.status, 200, 'admin mag')
     assert(r.data.orders.length >= 3, 'orders zichtbaar')
@@ -212,7 +212,7 @@ try {
       persist,
       "INSERT INTO orders (id, created_at, status, name, first_name, last_name, email, amount_cents, edition) VALUES ('test-pending-1', 1, 'pending', 'Hang Ende', 'Hang', 'Ende', 'hang@test.nl', 1000, 2026)",
     )
-    const adminCookie = sessionCookie('admin@test.nl')
+    const adminCookie = await sessionCookie('admin@test.nl')
     let r = await jsonReq(base, '/api/admin/order', {
       method: 'PATCH',
       cookie: adminCookie,
@@ -229,7 +229,7 @@ try {
   })
 
   await test('backstage: edities bijschrijven synct fototoegang', async () => {
-    const adminCookie = sessionCookie('admin@test.nl')
+    const adminCookie = await sessionCookie('admin@test.nl')
     let r = await jsonReq(base, '/api/admin/users', {
       method: 'PATCH',
       cookie: adminCookie,
@@ -240,10 +240,10 @@ try {
     assert(r.data.editions.includes(2024) && r.data.editions.includes(2026), '2024 erbij')
   })
   await test('bestaande sessie zonder account-rij krijgt er een via /api/me', async () => {
-    const ghost = sessionCookie('spook@test.nl')
+    const ghost = await sessionCookie('spook@test.nl')
     const r = await jsonReq(base, '/api/me', { cookie: ghost })
     assertEq(r.status, 200, 'profiel')
-    const adminCookie = sessionCookie('admin@test.nl')
+    const adminCookie = await sessionCookie('admin@test.nl')
     const lijst = await jsonReq(base, '/api/admin/users', { cookie: adminCookie })
     assert(lijst.data.users.some((u) => u.email === 'spook@test.nl'), 'rij aangemaakt via profielbezoek')
   })
@@ -254,7 +254,7 @@ try {
       'polokoper@test.nl',
       ['Polo', 'Koper'],
     )
-    const r = await jsonReq(base, '/api/me', { cookie: sessionCookie('polokoper@test.nl') })
+    const r = await jsonReq(base, '/api/me', { cookie: await sessionCookie('polokoper@test.nl') })
     assertEq(r.data.nickname, 'PoloNick', 'opdruk als nickname')
   })
 
@@ -279,7 +279,7 @@ try {
 
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
     d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
-    const adminCookie = sessionCookie('admin@test.nl')
+    const adminCookie = await sessionCookie('admin@test.nl')
     let r = await jsonReq(base, '/api/admin/users', {
       method: 'PATCH',
       cookie: adminCookie,
@@ -287,7 +287,7 @@ try {
     })
     assertEq(r.status, 200, 'alias gekoppeld')
 
-    r = await jsonReq(base, '/api/me', { cookie: sessionCookie('dagje@test.nl') })
+    r = await jsonReq(base, '/api/me', { cookie: await sessionCookie('dagje@test.nl') })
     assert(r.data.editions.includes(2024), 'editie van oud adres telt mee')
 
     r = await jsonReq(base, '/api/admin/users', { cookie: adminCookie })

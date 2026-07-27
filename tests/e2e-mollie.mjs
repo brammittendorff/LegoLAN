@@ -75,7 +75,7 @@ try {
   })
 
   await test('plek claimen na betaling', async () => {
-    const cookie = sessionCookie(EMAIL)
+    const cookie = await sessionCookie(EMAIL)
     let r = await jsonReq(base, '/api/seats/claim', {
       method: 'POST',
       body: { orderId, seatId: 'r7c12', nickname: 'E2E-er' },
