@@ -101,7 +101,7 @@ export const api = {
     next?: string
   }) => post<{ status: 'sent' }>('/api/auth/register', payload),
 
-  authLogout: () => post<{ ok: true }>('/api/auth/logout', {}),
+  authLogout: (everywhere = false) => post<{ ok: true }>('/api/auth/logout', { everywhere }),
 
   me: () => req<Profile>('/api/me'),
 

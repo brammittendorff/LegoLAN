@@ -8,6 +8,7 @@ import {
   assertEq,
   d1,
   jsonReq,
+  makeToken,
   sessionCookie,
   startServer,
   stopServer,
@@ -275,6 +276,31 @@ try {
     })
     const d2res = await res2.json()
     assertEq(d2res.sent, 0, 'tweede run direct erna stuurt niets')
+  })
+
+  await test('overal uitloggen reset sessies en loginlinks', async () => {
+    const email = 'resetter@test.nl'
+    // login via callback zodat er een users-rij is en een geldige sessie
+    const loginTok = await makeToken(email, 'login', 60_000)
+    const res = await fetch(`${base}/api/auth/callback?token=${encodeURIComponent(loginTok)}&next=/account`, {
+      redirect: 'manual',
+    })
+    const cookieHeader = res.headers.get('set-cookie') ?? ''
+    const sessie = cookieHeader.split(';')[0]
+    let r = await jsonReq(base, '/api/me', { cookie: sessie })
+    assertEq(r.status, 200, 'sessie werkt')
+
+    const oudeLink = await makeToken(email, 'login', 60_000)
+    r = await jsonReq(base, '/api/auth/logout', { method: 'POST', cookie: sessie, body: { everywhere: true } })
+    assertEq(r.status, 200, 'overal uitloggen')
+
+    r = await jsonReq(base, '/api/me', { cookie: sessie })
+    assertEq(r.status, 401, 'oude sessie ongeldig')
+
+    const res2 = await fetch(`${base}/api/auth/callback?token=${encodeURIComponent(oudeLink)}&next=/account`, {
+      redirect: 'manual',
+    })
+    assert((res2.headers.get('location') ?? '').includes('fout=link'), 'oude loginlink ongeldig')
   })
 
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {

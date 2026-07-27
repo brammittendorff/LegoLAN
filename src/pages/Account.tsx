@@ -82,13 +82,29 @@ export default function Account() {
               <p className="text-sm text-smoke/70">
                 {t('Ingelogd als', 'Signed in as')} <span className="text-milk">{user.email}</span>
               </p>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="btn-ghost !px-4 !py-1.5 text-xs"
-              >
-                {t('Uitloggen', 'Sign out')}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  className="btn-ghost !px-4 !py-1.5 text-xs"
+                >
+                  {t('Uitloggen', 'Sign out')}
+                </button>
+                <button
+                  type="button"
+                  title={t(
+                    'Maakt ook alle eerder gemailde inloglinks en sessies op andere apparaten ongeldig.',
+                    'Also invalidates all previously emailed sign-in links and sessions on other devices.',
+                  )}
+                  onClick={async () => {
+                    await api.authLogout(true).catch(() => undefined)
+                    window.location.reload()
+                  }}
+                  className="btn-ghost !px-4 !py-1.5 text-xs"
+                >
+                  {t('Overal uitloggen + links resetten', 'Sign out everywhere + reset links')}
+                </button>
+              </div>
             </div>
 
             {user.editions.length > 0 && (

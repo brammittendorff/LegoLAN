@@ -16,7 +16,7 @@ export const SESSION_TTL_S = 30 * 24 * 3600
 const enc = new TextEncoder()
 
 type TokenKind = 'login' | 'sessie'
-type Payload = { e: string; k: TokenKind; exp: string }
+type Payload = { e: string; k: TokenKind; v?: number; exp: string }
 
 /** Constante-tijd-vergelijking tegen timing-aanvallen op gedeelde geheimen. */
 export function safeEqual(a: string, b: string): boolean {
@@ -41,10 +41,18 @@ async function pasetoKey(env: Env): Promise<Uint8Array> {
   return key
 }
 
+async function sessionVersion(env: Env, email: string): Promise<number> {
+  const row = await env.DB.prepare(`SELECT session_version AS v FROM users WHERE email = ?`)
+    .bind(email)
+    .first<{ v: number }>()
+  return row?.v ?? 0
+}
+
 export async function createToken(env: Env, email: string, kind: TokenKind, ttlMs: number): Promise<string> {
   return encrypt(await pasetoKey(env), {
     e: email,
     k: kind,
+    v: await sessionVersion(env, email),
     exp: new Date(Date.now() + ttlMs).toISOString(),
   })
 }
@@ -54,10 +62,22 @@ export async function verifyToken(env: Env, token: string, kind: TokenKind): Pro
     // decrypt controleert de authenticatie-tag en de exp-claim zelf.
     const { payload } = await decrypt<Payload>(await pasetoKey(env), token)
     if (payload.k !== kind || typeof payload.e !== 'string') return null
+    // "Overal uitloggen" verhoogt de sessie-versie; oudere tokens vervallen.
+    if ((payload.v ?? 0) !== (await sessionVersion(env, payload.e))) return null
     return payload.e
   } catch {
     return null
   }
+}
+
+/** Maakt alle uitstaande loginlinks en sessies van dit adres ongeldig. */
+export async function invalidateAllSessions(env: Env, email: string): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO users (email, role, session_version, updated_at) VALUES (?, 'user', 1, ?)
+     ON CONFLICT(email) DO UPDATE SET session_version = session_version + 1, updated_at = excluded.updated_at`,
+  )
+    .bind(email, Date.now())
+    .run()
 }
 
 export function sessionSetCookie(token: string): string {
