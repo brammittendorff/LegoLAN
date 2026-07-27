@@ -239,6 +239,15 @@ try {
     r = await jsonReq(base, '/api/me', { cookie })
     assert(r.data.editions.includes(2024) && r.data.editions.includes(2026), '2024 erbij')
   })
+  await test('bestaande sessie zonder account-rij krijgt er een via /api/me', async () => {
+    const ghost = sessionCookie('spook@test.nl')
+    const r = await jsonReq(base, '/api/me', { cookie: ghost })
+    assertEq(r.status, 200, 'profiel')
+    const adminCookie = sessionCookie('admin@test.nl')
+    const lijst = await jsonReq(base, '/api/admin/users', { cookie: adminCookie })
+    assert(lijst.data.users.some((u) => u.email === 'spook@test.nl'), 'rij aangemaakt via profielbezoek')
+  })
+
   await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
     d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
     const adminCookie = sessionCookie('admin@test.nl')

@@ -15,6 +15,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const email = await emailFromRequest(env, request)
   if (!email) return err('Niet ingelogd.', 401)
 
+  // Vangnet voor sessies van vóór de rij-bij-login-wijziging: zorg dat
+  // iedere ingelogde bezoeker een account-rij heeft.
+  await env.DB.prepare(`INSERT OR IGNORE INTO users (email, role, updated_at) VALUES (?, 'user', ?)`)
+    .bind(email, Date.now())
+    .run()
+
   const user = await env.DB.prepare(
     `SELECT first_name, last_name, nickname, role FROM users WHERE email = ?`,
   )
