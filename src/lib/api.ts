@@ -23,7 +23,14 @@ export type AdminOverview = {
   }[]
   stats: { productId: string; sold: number; revenueCents: number }[]
   seats: { seatId: string; nickname: string; name: string; email: string }[]
-  polos: { name: string; email: string; size: string | null; customName: string; qty: number }[]
+  polos: {
+    itemId: number
+    name: string
+    email: string
+    size: string | null
+    customName: string
+    qty: number
+  }[]
   attendees: { edition: number; n: number }[]
 }
 
@@ -106,6 +113,20 @@ export const api = {
   adminReleaseSeat: (seatId: string) =>
     req<{ ok: true; released: boolean }>(`/api/admin/seat?seatId=${encodeURIComponent(seatId)}`, {
       method: 'DELETE',
+    }),
+
+  adminCancelOrder: (orderId: string) =>
+    req<{ ok: true }>('/api/admin/order', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId, action: 'cancel' }),
+    }),
+
+  adminUpdatePolo: (payload: { itemId: number; customName: string; size?: string }) =>
+    req<{ ok: true }>('/api/admin/polo', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
     }),
 
   photos: () =>

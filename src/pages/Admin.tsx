@@ -13,6 +13,9 @@ export default function Admin() {
   const [data, setData] = useState<AdminOverview | null>(null)
   const [error, setError] = useState('')
   const [busySeat, setBusySeat] = useState('')
+  const [busyOrder, setBusyOrder] = useState('')
+  const [poloEdits, setPoloEdits] = useState<Record<number, { customName: string; size: string }>>({})
+  const [busyPolo, setBusyPolo] = useState(0)
 
   const isAdmin = user?.role === 'admin'
 
@@ -33,6 +36,38 @@ export default function Admin() {
       await load()
     } finally {
       setBusySeat('')
+    }
+  }
+
+  const cancelOrder = async (orderId: string) => {
+    if (!window.confirm(t('Deze pending bestelling annuleren?', 'Cancel this pending order?'))) return
+    setBusyOrder(orderId)
+    try {
+      await api.adminCancelOrder(orderId)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'fout')
+    } finally {
+      setBusyOrder('')
+    }
+  }
+
+  const savePolo = async (itemId: number) => {
+    const edit = poloEdits[itemId]
+    if (!edit) return
+    setBusyPolo(itemId)
+    try {
+      await api.adminUpdatePolo({ itemId, customName: edit.customName, size: edit.size })
+      setPoloEdits((prev) => {
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'fout')
+    } finally {
+      setBusyPolo(0)
     }
   }
 
@@ -131,15 +166,68 @@ export default function Admin() {
               {t("Polo's (opdruk)", 'Polos (print)')} ({data.polos.length})
             </h2>
             <ul className="card-velvet mt-4 divide-y divide-grape/20 p-2 text-sm">
-              {data.polos.map((p, i) => (
-                <li key={i} className="flex items-center gap-3 px-2 py-2">
-                  <span className="font-label text-bulb">{p.qty}× {p.size}</span>
-                  <span className="text-milk">"{p.customName}"</span>
-                  <span className="flex-1 truncate text-smoke/70">
-                    {p.name} · {p.email}
-                  </span>
-                </li>
-              ))}
+              {data.polos.map((p) => {
+                const edit = poloEdits[p.itemId]
+                return (
+                  <li key={p.itemId} className="flex flex-wrap items-center gap-3 px-2 py-2">
+                    <span className="font-label text-bulb">{p.qty}×</span>
+                    {edit ? (
+                      <>
+                        <select
+                          className="input !w-20 !py-1"
+                          value={edit.size}
+                          onChange={(e) =>
+                            setPoloEdits((prev) => ({ ...prev, [p.itemId]: { ...edit, size: e.target.value } }))
+                          }
+                        >
+                          {['S', 'M', 'L', 'XL', 'XXL'].map((s) => (
+                            <option key={s}>{s}</option>
+                          ))}
+                        </select>
+                        <input
+                          className="input !w-44 !py-1"
+                          maxLength={20}
+                          value={edit.customName}
+                          onChange={(e) =>
+                            setPoloEdits((prev) => ({
+                              ...prev,
+                              [p.itemId]: { ...edit, customName: e.target.value },
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="btn-neon !px-3 !py-1 text-xs"
+                          disabled={busyPolo === p.itemId}
+                          onClick={() => void savePolo(p.itemId)}
+                        >
+                          {t('Opslaan', 'Save')}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-label text-bulb">{p.size}</span>
+                        <span className="text-milk">"{p.customName}"</span>
+                        <span className="flex-1 truncate text-smoke/70">
+                          {p.name} · {p.email}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-ghost !px-3 !py-1 text-xs"
+                          onClick={() =>
+                            setPoloEdits((prev) => ({
+                              ...prev,
+                              [p.itemId]: { customName: p.customName, size: p.size ?? 'L' },
+                            }))
+                          }
+                        >
+                          {t('Wijzig', 'Edit')}
+                        </button>
+                      </>
+                    )}
+                  </li>
+                )
+              })}
               {data.polos.length === 0 && (
                 <li className="px-2 py-2 text-smoke/60">{t('Nog geen polo besteld.', 'No polos ordered yet.')}</li>
               )}
@@ -187,6 +275,16 @@ export default function Admin() {
                         >
                           {o.status}
                         </span>
+                        {o.status === 'pending' && (
+                          <button
+                            type="button"
+                            className="btn-ghost ml-2 !px-2 !py-0.5 text-xs"
+                            disabled={busyOrder === o.id}
+                            onClick={() => void cancelOrder(o.id)}
+                          >
+                            {t('Annuleren', 'Cancel')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

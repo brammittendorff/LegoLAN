@@ -46,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     .all()
 
   const polos = await env.DB.prepare(
-    `SELECT o.name, o.email, oi.size, oi.custom_name AS customName, oi.qty
+    `SELECT oi.rowid AS itemId, o.name, o.email, oi.size, oi.custom_name AS customName, oi.qty
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
       WHERE o.status = 'paid' AND oi.custom_name IS NOT NULL AND o.edition = ?
