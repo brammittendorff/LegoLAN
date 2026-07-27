@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /account
+Disallow: /checkout
+Disallow: /bedankt
+Disallow: /zaal
+Disallow: /fotos
+
+Sitemap: https://legolan.nl/sitemap.xml

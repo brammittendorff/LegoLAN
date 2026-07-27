@@ -15,10 +15,24 @@ import Bedankt from './pages/Bedankt'
 import Oeps from './pages/Oeps'
 import NotFound from './pages/NotFound'
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'LEGOLAN 2026 · Stripclub Editie · 9-11 oktober, Hengelo',
+  '/shop': 'Shop · LEGOLAN 2026',
+  '/zaal': 'De Zaal · LEGOLAN 2026',
+  '/fotos': "Foto's · LEGOLAN 2026",
+  '/contact': 'Contact · LEGOLAN 2026',
+  '/account': 'Account · LEGOLAN 2026',
+  '/admin': 'Backstage · LEGOLAN 2026',
+  '/checkout': 'Afrekenen · LEGOLAN 2026',
+  '/bedankt': 'Bedankt · LEGOLAN 2026',
+  '/oeps': 'Oeps · LEGOLAN 2026',
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
+    document.title = PAGE_TITLES[pathname] ?? 'LEGOLAN 2026'
   }, [pathname])
   return null
 }
