@@ -9,7 +9,7 @@ type Body = { email?: string; turnstileToken?: string; next?: string }
 
 /** Alleen interne paden als redirect-doel, anders wordt de maillink een open redirect. */
 const safeNext = (next: string | undefined): string =>
-  next && /^\/[a-zA-Z0-9/_-]*$/.test(next) ? next : '/account'
+  next && /^\/[a-zA-Z0-9/_?=&-]*$/.test(next) ? next : '/account'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 

@@ -15,7 +15,7 @@ type Body = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const safeNext = (next: string | undefined): string =>
-  next && /^\/[a-zA-Z0-9/_-]*$/.test(next) ? next : '/account'
+  next && /^\/[a-zA-Z0-9/_?=&-]*$/.test(next) ? next : '/account'
 
 /** Nieuw account: profiel opslaan en meteen de inloglink mailen. */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {

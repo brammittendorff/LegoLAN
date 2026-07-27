@@ -4,6 +4,7 @@ import { buildRoom, type Cell } from '../../shared/seatmap'
 import { api, type OrderInfo } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
+import LoginForm from '../components/LoginForm'
 
 export default function Zaal() {
   const { t } = useLang()
@@ -41,7 +42,7 @@ export default function Zaal() {
   })
   const [busySeat, setBusySeat] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
-  const { user, refresh } = useAuth()
+  const { user, loading: authLoading, refresh } = useAuth()
 
   // Ingelogd? Dan vullen we je nickname alvast in.
   useEffect(() => {
@@ -56,21 +57,22 @@ export default function Zaal() {
   }, [])
 
   useEffect(() => {
+    if (!user) return
     refreshSeats().catch(() =>
       setNotice(
         t('Kon de plattegrond niet laden. Ververs de pagina.', 'Could not load the floor plan. Refresh the page.'),
       ),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshSeats])
+  }, [refreshSeats, user])
 
   useEffect(() => {
-    if (!orderId) return
+    if (!orderId || !user) return
     api
       .order(orderId)
       .then(setOrder)
       .catch(() => setOrder(null))
-  }, [orderId])
+  }, [orderId, user])
 
   const remaining =
     order?.status === 'paid' ? order.seatQuota - order.seatsClaimed.length : 0
@@ -236,6 +238,22 @@ export default function Zaal() {
         </p>
       </header>
 
+      {authLoading && <p className="mt-16 text-center text-smoke/70">{t('Laden...', 'Loading...')}</p>}
+
+      {!authLoading && !user && (
+        <div className="mx-auto mt-12 max-w-md">
+          <p className="mb-6 text-center text-sm text-smoke/80">
+            {t(
+              'De plattegrond is alleen voor bezoekers. Log in en je ziet wie waar zit.',
+              'The floor plan is for attendees only. Sign in to see who sits where.',
+            )}
+          </p>
+          <LoginForm next={orderId ? `/zaal?order=${orderId}` : '/zaal'} />
+        </div>
+      )}
+
+      {user && (
+        <>
       {canClaim && (
         <div className="neon-box mx-auto mt-10 max-w-xl bg-velvet/70 p-6 text-center">
           <p className="text-milk">
@@ -296,7 +314,7 @@ export default function Zaal() {
         ))}
       </div>
 
-      {claimedList.length > 0 && (
+      {claimedList.length > 0 && user && (
         <section className="mx-auto mt-14 max-w-3xl">
           <h2 className="text-center font-label text-xs uppercase tracking-[0.25em] text-bulb">
             {t('Wie zit waar', 'Who sits where')}
@@ -315,6 +333,8 @@ export default function Zaal() {
             ))}
           </ul>
         </section>
+      )}
+      </>
       )}
     </div>
   )

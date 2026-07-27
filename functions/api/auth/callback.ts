@@ -6,11 +6,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url)
   const token = url.searchParams.get('token') ?? ''
   const rawNext = url.searchParams.get('next') ?? ''
-  const next = /^\/[a-zA-Z0-9/_-]*$/.test(rawNext) ? rawNext : '/account'
+  const next = /^\/[a-zA-Z0-9/_?=&-]*$/.test(rawNext) ? rawNext : '/account'
   const email = await verifyToken(env, token, 'login')
 
   if (!email) {
-    return Response.redirect(`${url.origin}${next}?fout=link`, 302)
+    const sep = next.includes('?') ? '&' : '?'
+    return Response.redirect(`${url.origin}${next}${sep}fout=link`, 302)
   }
 
   const session = await createToken(env, email, 'sessie', SESSION_TTL_S * 1000)
