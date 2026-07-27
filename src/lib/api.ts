@@ -122,6 +122,7 @@ export const api = {
         nickname: string | null
         role: 'user' | 'admin'
         editions: string | null
+        aliases: string | null
       }[]
     }>('/api/admin/users'),
 
@@ -132,6 +133,7 @@ export const api = {
     lastName?: string
     nickname?: string
     editions?: number[]
+    aliases?: string[]
   }) =>
     req<{ ok: true }>('/api/admin/users', {
       method: 'PATCH',

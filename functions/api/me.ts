@@ -1,5 +1,5 @@
 import { buildRoom } from '../../shared/seatmap'
-import { editionsForEmail, emailFromRequest } from '../../server/auth'
+import { editionsForEmail, emailFromRequest, emailsFor } from '../../server/auth'
 import { err, json } from '../../server/http'
 import type { Env } from '../../server/types'
 
@@ -62,14 +62,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     if (seat?.nickname) nickname = seat.nickname
   }
 
-  // Geclaimde plekken, alle edities (geschiedenis: waar zat je per jaar)
+  // Geclaimde plekken, alle edities (geschiedenis: waar zat je per jaar),
+  // ook via gekoppelde oude adressen.
+  const emails = await emailsFor(env, email)
   const seatRows = await env.DB.prepare(
     `SELECT s.edition, s.seat_id AS seatId, s.nickname FROM seats s
        JOIN orders o ON o.id = s.order_id
-      WHERE lower(o.email) = ?
+      WHERE lower(o.email) IN (${emails.map(() => '?').join(',')})
       ORDER BY s.edition DESC, s.claimed_at`,
   )
-    .bind(email)
+    .bind(...emails)
     .all<{ edition: number; seatId: string; nickname: string }>()
   const seatNoById = new Map(
     buildRoom()

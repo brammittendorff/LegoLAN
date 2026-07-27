@@ -88,25 +88,37 @@ export async function isAdmin(env: Env, email: string): Promise<boolean> {
   return row?.role === 'admin'
 }
 
-/** Alle edities waar dit adres bij was: import uit WordPress + betaalde orders van nu. */
+/** Het adres zelf plus alle gekoppelde oude adressen (email_aliases). */
+export async function emailsFor(env: Env, email: string): Promise<string[]> {
+  const rows = await env.DB.prepare(`SELECT alias FROM email_aliases WHERE user_email = ?`)
+    .bind(email)
+    .all<{ alias: string }>()
+  return [email, ...rows.results.map((r) => r.alias)]
+}
+
+/** Alle edities waar dit adres (incl. gekoppelde oude adressen) bij was. */
 export async function editionsForEmail(env: Env, email: string): Promise<number[]> {
   const editions = new Set<number>()
+  const emails = await emailsFor(env, email)
+  const emailPh = emails.map(() => '?').join(',')
 
-  const imported = await env.DB.prepare(`SELECT edition FROM attendees WHERE email = ?`)
-    .bind(email)
+  const imported = await env.DB.prepare(
+    `SELECT edition FROM attendees WHERE email IN (${emailPh})`,
+  )
+    .bind(...emails)
     .all<{ edition: number }>()
   for (const row of imported.results) editions.add(row.edition)
 
   const ticketIds = PRODUCTS.filter((p) => p.type === 'ticket').map((p) => p.id)
   if (ticketIds.length > 0) {
-    const placeholders = ticketIds.map(() => '?').join(',')
+    const ticketPh = ticketIds.map(() => '?').join(',')
     const row = await env.DB.prepare(
       `SELECT COUNT(*) AS n
          FROM orders o
          JOIN order_items oi ON oi.order_id = o.id
-        WHERE o.status = 'paid' AND lower(o.email) = ? AND oi.product_id IN (${placeholders})`,
+        WHERE o.status = 'paid' AND lower(o.email) IN (${emailPh}) AND oi.product_id IN (${ticketPh})`,
     )
-      .bind(email, ...ticketIds)
+      .bind(...emails, ...ticketIds)
       .first<{ n: number }>()
     if ((row?.n ?? 0) > 0) editions.add(EDITION_YEAR)
   }

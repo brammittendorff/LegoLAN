@@ -10,7 +10,7 @@ import { euro } from '../lib/money'
 // Edities die je in Gebruikers kunt aanvinken (2024 = eerste editie in het systeem)
 const EDITIE_JAREN = Array.from({ length: EDITION_YEAR - 2024 + 1 }, (_, i) => 2024 + i)
 
-type UserEdit = { firstName: string; lastName: string; nickname: string; editions: number[] }
+type UserEdit = { firstName: string; lastName: string; nickname: string; editions: number[]; aliases: string }
 type Tab = 'verkoop' | 'plekken' | 'polos' | 'gebruikers'
 
 export default function Admin() {
@@ -409,6 +409,7 @@ export default function Admin() {
                   <th className="px-3 py-2">{t('Achternaam', 'Last name')}</th>
                   <th className="px-3 py-2">Nickname</th>
                   <th className="px-3 py-2">E-mail</th>
+                  <th className="px-3 py-2">{t('Oude e-mails', 'Old emails')}</th>
                   <th className="px-3 py-2">{t('Edities', 'Editions')}</th>
                   <th className="px-3 py-2">{t('Actie', 'Action')}</th>
                 </tr>
@@ -461,6 +462,16 @@ export default function Admin() {
                           </td>
                           <td className="px-3 py-2 text-smoke/70">{u.email}</td>
                           <td className="px-3 py-2">
+                            <input
+                              className="input !w-44 !py-1 text-xs"
+                              placeholder={t('oud@adres.nl, ...', 'old@address.com, ...')}
+                              value={edit.aliases}
+                              onChange={(e) =>
+                                setUserEdits((prev) => ({ ...prev, [u.email]: { ...edit, aliases: e.target.value } }))
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2">
                             <div className="flex flex-col gap-1">
                               {EDITIE_JAREN.map((year) => (
                                 <label key={year} className="flex items-center gap-1.5 text-xs text-smoke">
@@ -499,6 +510,7 @@ export default function Admin() {
                                       lastName: edit.lastName,
                                       nickname: edit.nickname,
                                       editions: edit.editions,
+                                      aliases: edit.aliases.split(/[\s,;]+/).filter(Boolean),
                                     }),
                                   async () => {
                                     setUserEdits((prev) => {
@@ -521,6 +533,9 @@ export default function Admin() {
                           <td className="px-3 py-2 text-milk">{u.lastName ?? '-'}</td>
                           <td className="px-3 py-2 text-smoke/80">{u.nickname ?? '-'}</td>
                           <td className="px-3 py-2 text-smoke/70">{u.email}</td>
+                          <td className="px-3 py-2 text-xs text-smoke/60">
+                            {(u.aliases ?? '').split(' ').filter(Boolean).join(', ') || '-'}
+                          </td>
                           <td className="whitespace-nowrap px-3 py-2 font-label text-xs text-bulb">
                             {u.editions ?? '-'}
                           </td>
@@ -539,6 +554,7 @@ export default function Admin() {
                                       .split(' ')
                                       .map(Number)
                                       .filter(Boolean),
+                                    aliases: (u.aliases ?? '').split(' ').filter(Boolean).join(', '),
                                   },
                                 }))
                               }
@@ -562,7 +578,7 @@ export default function Admin() {
                   )
                 })}
                 {users !== null && users.length === 0 && (
-                  <EmptyRow cols={7}>{t('Nog geen accounts.', 'No accounts yet.')}</EmptyRow>
+                  <EmptyRow cols={8}>{t('Nog geen accounts.', 'No accounts yet.')}</EmptyRow>
                 )}
               </tbody>
             </table>

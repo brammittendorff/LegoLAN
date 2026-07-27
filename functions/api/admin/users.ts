@@ -10,7 +10,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const rs = await env.DB.prepare(
     `SELECT u.email, u.first_name AS firstName, u.last_name AS lastName,
             u.nickname, u.role,
-            (SELECT group_concat(a.edition, ' ') FROM attendees a WHERE a.email = u.email) AS editions
+            (SELECT group_concat(a.edition, ' ') FROM attendees a
+              WHERE a.email = u.email
+                 OR a.email IN (SELECT alias FROM email_aliases WHERE user_email = u.email)) AS editions,
+            (SELECT group_concat(al.alias, ' ') FROM email_aliases al WHERE al.user_email = u.email) AS aliases
        FROM users u
       ORDER BY u.role DESC, u.email`,
   ).all()
@@ -24,7 +27,10 @@ type Body = {
   lastName?: string
   nickname?: string
   editions?: number[]
+  aliases?: string[]
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   const adminEmail = await emailFromRequest(env, request)
@@ -38,7 +44,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const target = body.email?.trim().toLowerCase() ?? ''
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) return err('Ongeldig e-mailadres.')
+  if (!EMAIL_RE.test(target)) return err('Ongeldig e-mailadres.')
 
   // Bestaand profiel ophalen zodat niet-meegestuurde velden blijven staan.
   const existing = await env.DB.prepare(
@@ -114,6 +120,38 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       if (!wanted.has(year)) {
         statements.push(
           env.DB.prepare(`DELETE FROM attendees WHERE email = ? AND edition = ?`).bind(target, year),
+        )
+      }
+    }
+    if (statements.length > 0) await env.DB.batch(statements)
+  }
+
+  // Gekoppelde oude e-mailadressen synchroniseren.
+  if (Array.isArray(body.aliases)) {
+    const wanted = new Set(
+      body.aliases
+        .map((a) => String(a).trim().toLowerCase())
+        .filter((a) => EMAIL_RE.test(a) && a !== target),
+    )
+    const current = await env.DB.prepare(`SELECT alias FROM email_aliases WHERE user_email = ?`)
+      .bind(target)
+      .all<{ alias: string }>()
+    const have = new Set(current.results.map((r) => r.alias))
+
+    const statements = []
+    for (const alias of wanted) {
+      if (!have.has(alias)) {
+        statements.push(
+          env.DB.prepare(
+            `INSERT OR REPLACE INTO email_aliases (alias, user_email, created_at) VALUES (?, ?, ?)`,
+          ).bind(alias, target, Date.now()),
+        )
+      }
+    }
+    for (const alias of have) {
+      if (!wanted.has(alias)) {
+        statements.push(
+          env.DB.prepare(`DELETE FROM email_aliases WHERE alias = ? AND user_email = ?`).bind(alias, target),
         )
       }
     }

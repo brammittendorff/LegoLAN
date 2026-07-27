@@ -239,6 +239,24 @@ try {
     r = await jsonReq(base, '/api/me', { cookie })
     assert(r.data.editions.includes(2024) && r.data.editions.includes(2026), '2024 erbij')
   })
+  await test('gekoppeld oud e-mailadres telt mee voor edities', async () => {
+    d1(persist, "INSERT OR IGNORE INTO attendees (email, edition, source) VALUES ('oud-adres@test.nl', 2024, 'import-test')")
+    const adminCookie = sessionCookie('admin@test.nl')
+    let r = await jsonReq(base, '/api/admin/users', {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { email: 'dagje@test.nl', aliases: ['oud-adres@test.nl'] },
+    })
+    assertEq(r.status, 200, 'alias gekoppeld')
+
+    r = await jsonReq(base, '/api/me', { cookie: sessionCookie('dagje@test.nl') })
+    assert(r.data.editions.includes(2024), 'editie van oud adres telt mee')
+
+    r = await jsonReq(base, '/api/admin/users', { cookie: adminCookie })
+    const u = r.data.users.find((x) => x.email === 'dagje@test.nl')
+    assert(u.aliases?.includes('oud-adres@test.nl'), 'alias zichtbaar in lijst')
+  })
+
 } finally {
   stopServer(proc)
 }
