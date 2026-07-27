@@ -1,0 +1,8 @@
+name = "legolan"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "legolan"
+database_id = "dea8801d-0401-404b-a105-0de7cb5077e8"

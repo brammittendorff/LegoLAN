@@ -1,0 +1,44 @@
+# Lokale ontwikkelomgeving in Docker: site + Cloudflare Functions (wrangler,
+# lokale testmodus) + lokale D1-database + Mailpit als mail-vanger.
+#
+#   docker compose up
+#   → site:  http://localhost:8788
+#   → mail:  http://localhost:8025  (alle mail belandt hier, niets gaat echt weg)
+#
+# Secrets komen uit .dev.vars (kopieer .dev.vars.example). De lokale D1-database
+# is een SQLite-bestand in .wrangler/ en blijft bewaard tussen herstarts.
+services:
+  legolan:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    working_dir: /app
+    command: >
+      sh -c "npm install
+      && npm run db:migrate:local
+      && npm run build
+      && npx wrangler pages dev --ip 0.0.0.0 --port 8788
+      --binding MAILPIT_URL=http://mailpit:8025"
+    ports:
+      - "8788:8788"
+    # Draai als je eigen user zodat dist/ en .wrangler/ niet van root worden
+    user: "1000:1000"
+    # Nette afsluiting bij Ctrl+C (signalen doorsluizen naar wrangler)
+    init: true
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    environment:
+      - CI=true
+      - HOME=/tmp
+      - npm_config_cache=/tmp/.npm
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025" # webinterface om mail te bekijken
+
+volumes:
+  node_modules:

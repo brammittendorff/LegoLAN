@@ -1,0 +1,37 @@
+# Elke push naar main → build → deploy naar Cloudflare Pages.
+#
+# Eenmalig instellen in GitHub (repo → Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   Cloudflare dashboard → My Profile → API Tokens →
+#                          Create Token → template "Cloudflare Pages - Edit"
+#   CLOUDFLARE_ACCOUNT_ID  24603785a17cba5bebd127eb7e1ace41
+name: Deploy naar Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+        env:
+          # Publieke Turnstile-sitekey (widget "legolan"); de secret staat als
+          # TURNSTILE_SECRET_KEY op het Pages-project.
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --branch main

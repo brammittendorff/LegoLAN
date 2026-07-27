@@ -1,0 +1,309 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { buildRoom, seatKinds, type Cell } from '../../shared/seatmap'
+import { api, type OrderInfo } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { useLang } from '../lib/i18n'
+
+export default function Zaal() {
+  const { t } = useLang()
+  const room = useMemo(buildRoom, [])
+  const kinds = useMemo(seatKinds, [])
+  const cols = room[0]?.length ?? 0
+
+  const legend = [
+    { label: t('Vrije plek', 'Free seat'), cls: 'border border-grape/50 bg-velvet-2' },
+    { label: t('Vrije dagplek', 'Free day seat'), cls: 'border border-cyan-400/50 bg-velvet-2' },
+    { label: t('Bezet', 'Taken'), cls: 'bg-neon' },
+    { label: t('Bar', 'Bar'), cls: 'bg-grape/40' },
+    { label: t('Deur', 'Door'), cls: 'bg-red-500/60' },
+    { label: t('Switch', 'Switch'), cls: 'bg-blue-500/60' },
+    { label: t('Chill / openhaard', 'Chill / fireplace'), cls: 'bg-bulb/40' },
+  ]
+
+  const [params] = useSearchParams()
+  const orderId =
+    params.get('order') ??
+    (() => {
+      try {
+        return localStorage.getItem('legolan-last-order')
+      } catch {
+        return null
+      }
+    })()
+
+  const [claims, setClaims] = useState<Map<string, string>>(new Map())
+  const [order, setOrder] = useState<OrderInfo | null>(null)
+  const [nickname, setNickname] = useState(() => {
+    try {
+      return localStorage.getItem('legolan-nick') ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const [busySeat, setBusySeat] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+  const { user } = useAuth()
+
+  // Ingelogd? Dan vullen we je nickname alvast in.
+  useEffect(() => {
+    if (user?.nickname) {
+      setNickname((prev) => prev || user.nickname)
+    }
+  }, [user])
+
+  const refreshSeats = useCallback(async () => {
+    const { seats } = await api.seats()
+    setClaims(new Map(seats.map((s) => [s.seatId, s.nickname])))
+  }, [])
+
+  useEffect(() => {
+    refreshSeats().catch(() =>
+      setNotice(
+        t('Kon de plattegrond niet laden. Ververs de pagina.', 'Could not load the floor plan. Refresh the page.'),
+      ),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSeats])
+
+  useEffect(() => {
+    if (!orderId) return
+    api
+      .order(orderId)
+      .then(setOrder)
+      .catch(() => setOrder(null))
+  }, [orderId])
+
+  const remaining = useMemo(() => {
+    if (!order || order.status !== 'paid') return { seat: 0, dayseat: 0 }
+    const used = { seat: 0, dayseat: 0 }
+    for (const claim of order.seatsClaimed) {
+      const kind = kinds.get(claim.seatId)
+      if (kind) used[kind] += 1
+    }
+    return {
+      seat: order.seatQuota.seat - used.seat,
+      dayseat: order.seatQuota.dayseat - used.dayseat,
+    }
+  }, [order, kinds])
+
+  const canClaimSomething = remaining.seat > 0 || remaining.dayseat > 0
+
+  const claim = async (cell: Cell) => {
+    if (!orderId || !cell.seatId) return
+    const kind = cell.kind === 'dayseat' ? 'dayseat' : 'seat'
+    if (remaining[kind] <= 0) {
+      setNotice(
+        kind === 'dayseat'
+          ? t(
+              'Je hebt geen dagticket (meer) om een dagplek mee te claimen.',
+              'You have no (more) day tickets to claim a day seat with.',
+            )
+          : t(
+              'Je weekendtickets zijn al aan plekken gekoppeld.',
+              'Your weekend tickets are already linked to seats.',
+            ),
+      )
+      return
+    }
+    const nick = nickname.trim()
+    if (!nick) {
+      setNotice(
+        t(
+          'Vul eerst je (gamer)naam in - anders weet niemand naast wie ze zitten.',
+          'Fill in your (gamer) name first - otherwise nobody knows who they are sitting next to.',
+        ),
+      )
+      return
+    }
+    setBusySeat(cell.seatId)
+    setNotice('')
+    try {
+      localStorage.setItem('legolan-nick', nick)
+    } catch {
+      /* jammer dan */
+    }
+    try {
+      await api.claimSeat({ orderId, seatId: cell.seatId, nickname: nick })
+      await refreshSeats()
+      const updated = await api.order(orderId)
+      setOrder(updated)
+      setNotice(
+        t(
+          `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
+          `Seat ${cell.seatNo} is yours. Bring on that weekend.`,
+        ),
+      )
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : t('Claimen mislukte.', 'Claiming failed.'))
+      await refreshSeats().catch(() => undefined)
+    } finally {
+      setBusySeat(null)
+    }
+  }
+
+  const mySeats = new Set(order?.seatsClaimed.map((s) => s.seatId) ?? [])
+
+  const cellView = (cell: Cell) => {
+    const key = `${cell.row}-${cell.col}`
+    const base = 'flex aspect-square items-center justify-center rounded-[4px] font-label text-[10px]'
+
+    if (cell.kind === 'void') return <div key={key} />
+    if (cell.kind === 'floor') return <div key={key} className={`${base} bg-white/[0.04]`} />
+    if (cell.kind === 'bar') return <div key={key} className={`${base} bg-grape/40`} title={t('Bar', 'Bar')} />
+    if (cell.kind === 'door')
+      return <div key={key} className={`${base} bg-red-500/60`} title={t('Deur', 'Door')} />
+    if (cell.kind === 'switch')
+      return <div key={key} className={`${base} bg-blue-500/60`} title={t('Netwerkswitch', 'Network switch')} />
+    if (cell.kind === 'chill')
+      return (
+        <div key={key} className={`${base} bg-bulb/40`} title={t('Chillhoek / openhaard', 'Chill corner / fireplace')} />
+      )
+
+    // LAN-plek
+    const taken = cell.seatId ? claims.get(cell.seatId) : undefined
+    const mine = cell.seatId ? mySeats.has(cell.seatId) : false
+    const isDay = cell.kind === 'dayseat'
+    const claimTarget = !taken && canClaimSomething && remaining[isDay ? 'dayseat' : 'seat'] > 0
+
+    if (taken) {
+      return (
+        <div
+          key={key}
+          className={`${base} font-bold text-void ${
+            mine ? 'bg-bulb shadow-[0_0_10px_rgb(255_201_107/0.8)]' : 'bg-neon'
+          }`}
+          title={`${t('Plek', 'Seat')} ${cell.seatNo}: ${taken}`}
+        >
+          {cell.seatNo}
+        </div>
+      )
+    }
+
+    return (
+      <button
+        key={key}
+        type="button"
+        disabled={!claimTarget || busySeat !== null}
+        onClick={() => void claim(cell)}
+        title={`${t('Plek', 'Seat')} ${cell.seatNo}${isDay ? t(' (dagplek)', ' (day seat)') : ''} - ${t('vrij', 'free')}`}
+        className={`${base} border bg-velvet-2 ${
+          isDay ? 'border-cyan-400/50 text-cyan-200/80' : 'border-grape/50 text-smoke/80'
+        } ${
+          claimTarget
+            ? 'cursor-pointer transition-shadow hover:border-neon hover:text-milk hover:shadow-[0_0_10px_rgb(255_46_136/0.6)]'
+            : 'cursor-default'
+        } ${busySeat === cell.seatId ? 'animate-pulse' : ''}`}
+      >
+        {cell.seatNo}
+      </button>
+    )
+  }
+
+  const claimedList = [...claims.entries()]
+    .map(([seatId, nick]) => {
+      const cell = room.flat().find((c) => c.seatId === seatId)
+      return cell ? { no: cell.seatNo ?? 0, nick } : null
+    })
+    .filter((x): x is { no: number; nick: string } => x !== null)
+    .sort((a, b) => a.no - b.no)
+
+  return (
+    <div className="mx-auto max-w-5xl px-6 py-16">
+      <header className="text-center">
+        <h1 className="neon-script text-6xl md:text-7xl">{t('de zaal', 'the hall')}</h1>
+        <p className="mt-4 text-smoke/80">
+          {t(
+            'Kies waar je het weekend doorbrengt. Naast je vrienden, of juist niet.',
+            'Pick where you spend the weekend. Next to your friends, or deliberately not.',
+          )}
+        </p>
+      </header>
+
+      {order?.status === 'paid' && canClaimSomething && (
+        <div className="neon-box mx-auto mt-10 max-w-xl bg-velvet/70 p-6 text-center">
+          <p className="text-milk">
+            {t('Je hebt nog', 'You still have')}{' '}
+            <strong>
+              {remaining.seat > 0 &&
+                (remaining.seat === 1
+                  ? t('1 plek', '1 seat')
+                  : t(`${remaining.seat} plekken`, `${remaining.seat} seats`))}
+              {remaining.seat > 0 && remaining.dayseat > 0 && t(' en ', ' and ')}
+              {remaining.dayseat > 0 &&
+                (remaining.dayseat === 1
+                  ? t('1 dagplek', '1 day seat')
+                  : t(`${remaining.dayseat} dagplekken`, `${remaining.dayseat} day seats`))}
+            </strong>{' '}
+            {t('te claimen. Vul je naam in en klik op een vrije plek.', 'to claim. Fill in your name and click a free seat.')}
+          </p>
+          <input
+            className="input mx-auto mt-4 max-w-xs text-center"
+            placeholder={t('Je (gamer)naam', 'Your (gamer) name')}
+            maxLength={20}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            aria-label={t('Gamernaam voor op de plattegrond', 'Gamer name shown on the floor plan')}
+          />
+        </div>
+      )}
+
+      {order?.status === 'paid' && !canClaimSomething && mySeats.size > 0 && (
+        <p className="mt-8 text-center text-smoke">
+          {t(
+            'Al je plekken zijn geclaimd (goud op de kaart). Tot op de LAN.',
+            'All your seats are claimed (gold on the map). See you at the LAN.',
+          )}
+        </p>
+      )}
+
+      {!order && (
+        <p className="mt-8 text-center text-sm text-smoke/70">
+          {t(
+            'Ticket gekocht? Open de link uit je bevestigingsmail (of van de bedankt-pagina) om je plek te kiezen. Nog geen ticket?',
+            'Bought a ticket? Open the link from your confirmation email (or the thank-you page) to pick your seat. No ticket yet?',
+          )}{' '}
+          <Link to="/shop" className="text-neon hover:underline">
+            {t('De shop is open.', 'The shop is open.')}
+          </Link>
+        </p>
+      )}
+
+      {notice && <p className="mt-6 text-center text-sm text-bulb">{notice}</p>}
+
+      <div className="mt-10 overflow-x-auto pb-2">
+        <div
+          className="mx-auto grid w-max gap-1"
+          style={{ gridTemplateColumns: `repeat(${cols}, 2.1rem)` }}
+        >
+          {room.flat().map(cellView)}
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2">
+        {legend.map((l) => (
+          <span key={l.label} className="flex items-center gap-2 text-xs text-smoke/80">
+            <span className={`inline-block h-3.5 w-3.5 rounded-[3px] ${l.cls}`} aria-hidden="true" />
+            {l.label}
+          </span>
+        ))}
+      </div>
+
+      {claimedList.length > 0 && (
+        <section className="mx-auto mt-14 max-w-md">
+          <h2 className="text-center font-label text-xs uppercase tracking-[0.25em] text-bulb">
+            {t('Wie zit waar', 'Who sits where')}
+          </h2>
+          <ul className="card-velvet mt-4 grid grid-cols-2 gap-x-6 gap-y-1 p-4 text-sm">
+            {claimedList.map((claimed) => (
+              <li key={claimed.no} className="flex justify-between">
+                <span className="font-label text-smoke/70">#{claimed.no}</span>
+                <span className="truncate pl-2 text-milk">{claimed.nick}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}

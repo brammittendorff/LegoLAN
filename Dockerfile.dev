@@ -1,0 +1,15 @@
+# Alleen voor lokaal ontwikkelen (docker compose). Productie draait op
+# Cloudflare Pages en gebruikt dit bestand niet.
+FROM node:24-bookworm-slim
+
+# workerd (wrangler's runtime) heeft de systeem-CA-certificaten nodig om
+# HTTPS-verkeer naar Mollie/Mailjet/Turnstile te vertrouwen.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# De node_modules-volume erft deze eigenaar (uid 1000) bij de eerste start,
+# zodat de container als gewone user kan installeren.
+RUN mkdir -p /app/node_modules && chown -R node:node /app

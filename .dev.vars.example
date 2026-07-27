@@ -1,0 +1,41 @@
+# Kopieer dit bestand naar .dev.vars voor lokaal ontwikkelen (wordt NIET gecommit).
+# In productie zet je deze als secrets in het Cloudflare Pages dashboard
+# (Settings → Environment variables) of via `npx wrangler pages secret put <NAAM>`.
+
+# Mollie API key (test_... of live_...).
+# Speciale waarde "fake" = geen echte betaling: orders worden direct als betaald
+# gemarkeerd. Alleen voor lokaal testen!
+MOLLIE_API_KEY=fake
+
+# Mailjet (API keys: https://app.mailjet.com/account/apikeys)
+# Leeg laten = e-mails worden overgeslagen (handig lokaal).
+MAILJET_API_KEY=
+MAILJET_API_SECRET=
+# ID van de contactenlijst voor de nieuwsbrief (abonneer-formulier).
+# De bestaande lijst "Legolan Contacts" heeft ID 3318.
+MAILJET_LIST_ID=3318
+
+# Afzender + waar het contactformulier heen gaat
+FROM_EMAIL=noreply@legolan.nl
+FROM_NAME=LEGOLAN
+CONTACT_EMAIL=info@legolan.nl
+
+# Cloudflare Turnstile (anti-spam). Leeg = altijd-goed testmodus (lokaal prima).
+# De secret hoort alleen in productie (Pages-secret). De publieke sitekey voor
+# handmatige deploys zet je in .env.local: VITE_TURNSTILE_SITE_KEY=...
+TURNSTILE_SECRET_KEY=
+
+# Inloglinks + sessies voor de fotopagina. Genereer met: openssl rand -hex 32
+AUTH_SECRET=
+
+# Wasabi S3 waar de foto's staan (apart account). Map-per-editie: 2024/, 2025/, ...
+# Leeg laten = fotopagina toont "albums volgen nog".
+WASABI_ENDPOINT=https://s3.eu-central-1.wasabisys.com
+WASABI_REGION=eu-central-1
+WASABI_BUCKET=legolan
+WASABI_ACCESS_KEY_ID=
+WASABI_SECRET_ACCESS_KEY=
+
+# Lokaal mail vangen met Mailpit (docker compose zet dit zelf al via een binding).
+# Draai je wrangler zonder Docker maar mét een lokale Mailpit? Zet dan:
+# MAILPIT_URL=http://localhost:8025
