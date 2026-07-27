@@ -183,39 +183,64 @@ export default function Admin() {
             </div>
           </div>
 
-          <ul className="card-velvet mx-auto mt-6 max-w-3xl divide-y divide-grape/20 p-2 text-sm">
-            {(users ?? []).map((u) => (
-              <li key={u.email} className="flex flex-wrap items-center gap-3 px-2 py-2">
-                <span
-                  className={`font-label text-[10px] uppercase tracking-widest ${
-                    u.role === 'admin' ? 'text-neon' : 'text-smoke/50'
-                  }`}
-                >
-                  {u.role}
-                </span>
-                <span className="text-milk">
-                  {[u.firstName, u.lastName].filter(Boolean).join(' ') || u.nickname || '-'}
-                </span>
-                <span className="flex-1 truncate text-smoke/70">{u.email}</span>
-                {u.editions && (
-                  <span className="font-label text-xs text-bulb">{u.editions}</span>
+          <div className="mt-6 overflow-x-auto">
+            <table className="card-velvet w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="font-label text-[11px] uppercase tracking-widest text-smoke/60">
+                  <th className="px-3 py-2">{t('Rol', 'Role')}</th>
+                  <th className="px-3 py-2">{t('Naam', 'Name')}</th>
+                  <th className="px-3 py-2">Nickname</th>
+                  <th className="px-3 py-2">E-mail</th>
+                  <th className="px-3 py-2">{t('Edities', 'Editions')}</th>
+                  <th className="px-3 py-2">{t('Actie', 'Action')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(users ?? []).map((u) => (
+                  <tr key={u.email} className="border-t border-grape/20">
+                    <td className="px-3 py-2">
+                      <span
+                        className={`font-label text-[10px] uppercase tracking-widest ${
+                          u.role === 'admin' ? 'text-neon' : 'text-smoke/50'
+                        }`}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-milk">
+                      {[u.firstName, u.lastName].filter(Boolean).join(' ') || '-'}
+                    </td>
+                    <td className="px-3 py-2 text-smoke/80">{u.nickname ?? '-'}</td>
+                    <td className="px-3 py-2 text-smoke/70">{u.email}</td>
+                    <td className="whitespace-nowrap px-3 py-2 font-label text-xs text-bulb">
+                      {u.editions ?? '-'}
+                    </td>
+                    <td className="px-3 py-2">
+                      {u.email !== user.email ? (
+                        <button
+                          type="button"
+                          className="btn-ghost !px-3 !py-1 text-xs"
+                          disabled={busyUser === u.email}
+                          onClick={() => void setRole(u.email, u.role === 'admin' ? 'user' : 'admin')}
+                        >
+                          {u.role === 'admin' ? t('Rol afnemen', 'Remove admin') : t('Maak admin', 'Make admin')}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-smoke/50">{t('jijzelf', 'you')}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {users !== null && users.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-2 text-smoke/60">
+                      {t('Nog geen accounts.', 'No accounts yet.')}
+                    </td>
+                  </tr>
                 )}
-                {u.email !== user.email && (
-                  <button
-                    type="button"
-                    className="btn-ghost !px-3 !py-1 text-xs"
-                    disabled={busyUser === u.email}
-                    onClick={() => void setRole(u.email, u.role === 'admin' ? 'user' : 'admin')}
-                  >
-                    {u.role === 'admin' ? t('Rol afnemen', 'Remove admin') : t('Maak admin', 'Make admin')}
-                  </button>
-                )}
-              </li>
-            ))}
-            {users !== null && users.length === 0 && (
-              <li className="px-2 py-2 text-smoke/60">{t('Nog geen accounts.', 'No accounts yet.')}</li>
-            )}
-          </ul>
+              </tbody>
+            </table>
+          </div>
           <p className="mx-auto mt-3 max-w-3xl text-xs text-smoke/60">
             {t(
               'Alleen mensen met een account staan hier; deelnemers zonder account verschijnen zodra ze een keer inloggen of registreren.',

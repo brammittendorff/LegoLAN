@@ -117,6 +117,39 @@ export default function Zaal() {
 
   const mySeats = new Set(order?.seatsClaimed.map((s) => s.seatId) ?? [])
 
+  const release = async (cell: Cell) => {
+    if (!orderId || !cell.seatId) return
+    if (
+      !window.confirm(
+        t(
+          `Plek ${cell.seatNo} vrijgeven? Je kunt daarna een andere plek kiezen.`,
+          `Release seat ${cell.seatNo}? You can pick a different seat afterwards.`,
+        ),
+      )
+    ) {
+      return
+    }
+    setBusySeat(cell.seatId)
+    setNotice('')
+    try {
+      await api.releaseSeat({ orderId, seatId: cell.seatId })
+      await refreshSeats()
+      const updated = await api.order(orderId)
+      setOrder(updated)
+      void refresh()
+      setNotice(
+        t(
+          `Plek ${cell.seatNo} is weer vrij. Kies een nieuwe plek.`,
+          `Seat ${cell.seatNo} is free again. Pick a new seat.`,
+        ),
+      )
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : t('Vrijgeven mislukte.', 'Releasing failed.'))
+    } finally {
+      setBusySeat(null)
+    }
+  }
+
   const cellView = (cell: Cell) => {
     const key = `${cell.row}-${cell.col}`
     const base = 'flex aspect-square items-center justify-center rounded-[4px] font-label text-[10px]'
@@ -137,13 +170,27 @@ export default function Zaal() {
     const taken = cell.seatId ? claims.get(cell.seatId) : undefined
     const mine = cell.seatId ? mySeats.has(cell.seatId) : false
 
+    if (taken && mine) {
+      return (
+        <button
+          key={key}
+          type="button"
+          onClick={() => void release(cell)}
+          title={t(
+            `Jouw plek (${taken}) - klik om vrij te geven`,
+            `Your seat (${taken}) - click to release`,
+          )}
+          className={`${base} cursor-pointer bg-bulb font-bold text-void shadow-[0_0_10px_rgb(255_201_107/0.8)] transition-shadow hover:shadow-[0_0_14px_rgb(255_46_136/0.8)]`}
+        >
+          {cell.seatNo}
+        </button>
+      )
+    }
     if (taken) {
       return (
         <div
           key={key}
-          className={`${base} font-bold text-void ${
-            mine ? 'bg-bulb shadow-[0_0_10px_rgb(255_201_107/0.8)]' : 'bg-neon'
-          }`}
+          className={`${base} bg-neon font-bold text-void`}
           title={`${t('Plek', 'Seat')} ${cell.seatNo}: ${taken}`}
         >
           {cell.seatNo}
@@ -211,8 +258,8 @@ export default function Zaal() {
       {order?.status === 'paid' && !canClaim && mySeats.size > 0 && (
         <p className="mt-8 text-center text-smoke">
           {t(
-            'Al je plekken zijn geclaimd (goud op de kaart). Tot op de LAN.',
-            'All your seats are claimed (gold on the map). See you at the LAN.',
+            'Al je plekken zijn geclaimd (goud op de kaart). Verkeerd geklikt? Klik op je gouden plek om hem vrij te geven.',
+            'All your seats are claimed (gold on the map). Picked wrong? Click your gold seat to release it.',
           )}
         </p>
       )}

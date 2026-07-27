@@ -79,6 +79,9 @@ export const api = {
   claimSeat: (payload: { orderId: string; seatId: string; nickname: string }) =>
     post<{ ok: true }>('/api/seats/claim', payload),
 
+  releaseSeat: (payload: { orderId: string; seatId: string }) =>
+    post<{ ok: true }>('/api/seats/release', payload),
+
   subscribe: (payload: { email: string; turnstileToken: string }) =>
     post<{ ok: true }>('/api/subscribe', payload),
 
