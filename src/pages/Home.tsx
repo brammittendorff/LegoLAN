@@ -30,8 +30,8 @@ export default function Home() {
       eyebrow: t('De Bar', 'The Bar'),
       title: t('Eten & drinken', 'Food & drinks'),
       text: t(
-        'Koud bier, warme pizza en op zaterdagavond de beruchte Dinner Show. De paal is van de netwerkkabels, beloofd.',
-        'Cold beer, hot pizza and the infamous Dinner Show on Saturday night. The pole belongs to the network cables, promise.',
+        'Koud bier, warme pizza en op zaterdagavond het Luxe Diner. De paal is van de netwerkkabels, beloofd.',
+        'Cold beer, hot pizza and the Deluxe Dinner on Saturday night. The pole belongs to the network cables, promise.',
       ),
     },
   ]
