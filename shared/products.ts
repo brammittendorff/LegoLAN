@@ -17,7 +17,7 @@ export const EDITION_YEAR = 2026
  */
 export const CAPACITY_POOLS: Record<string, number> = {
   computerhuur: 2, // 2 huur-PC's per dag
-  dagticket: 6, // max 6 daggasten per dag
+  dagticket: 40, // zaalcapaciteit per dag; praktisch onbeperkt
 }
 
 /** De dagen van het event (vr 9, za 10, zo 11 oktober). */
