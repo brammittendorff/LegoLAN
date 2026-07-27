@@ -125,6 +125,7 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
   const total = (order.amount_cents / 100).toFixed(2).replace('.', ',')
 
   const hasSeats = quota > 0
+  const contactEmail = env.CONTACT_EMAIL || 'info@legolan.nl'
   const html = renderEmail({
     heading: `Welkom bij de club, ${escapeHtml(order.name)}`,
     bodyHtml: `
@@ -134,7 +135,7 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
       </ul>
       <p style="margin:0;color:#fff6fb"><strong>Totaal: &euro; ${total}</strong></p>
       ${hasSeats ? '<p style="margin:16px 0 0 0">Nu het belangrijkste: waar zit je?</p>' : ''}
-      <p style="margin:16px 0 0 0">Vragen? Beantwoord gewoon deze mail.</p>`,
+      <p style="margin:16px 0 0 0">Vragen? Mail ons op <a href="mailto:${contactEmail}" style="color:#ff2e88">${contactEmail}</a>.</p>`,
     cta: hasSeats ? { label: 'Kies je plek in de zaal', url: seatUrl } : undefined,
     afterCtaHtml: hasSeats ? `Of plak deze link in je browser: ${seatUrl}` : undefined,
   })
@@ -147,6 +148,8 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
     '',
     `Totaal: € ${total}`,
     ...(hasSeats ? ['', `Kies je plek in de zaal: ${seatUrl}`] : []),
+    '',
+    `Vragen? Mail ons op ${contactEmail}.`,
   ].join('\n')
 
   try {
