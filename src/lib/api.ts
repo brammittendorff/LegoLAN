@@ -34,6 +34,17 @@ export type AdminOverview = {
   attendees: { edition: number; n: number }[]
 }
 
+export type DayPoint = { day: string; n: number; cents: number | null }
+
+export type AdminStats = {
+  edition: number
+  omzet: DayPoint[]
+  plekken: DayPoint[]
+  logins: DayPoint[]
+  accounts: DayPoint[]
+  totals: { paidOrders: number; revenueCents: number; seatsClaimed: number; accounts: number }
+}
+
 export type OrderStatus = 'pending' | 'paid' | 'failed' | 'canceled' | 'expired' | 'refunded'
 
 export type OrderInfo = {
@@ -119,6 +130,8 @@ export const api = {
 
   adminOverview: () => req<AdminOverview>('/api/admin/overview'),
 
+  adminStats: () => req<AdminStats>('/api/admin/stats'),
+
   adminDeleteUser: (email: string) =>
     req<{ ok: true }>(`/api/admin/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' }),
 
@@ -130,6 +143,7 @@ export const api = {
         lastName: string | null
         nickname: string | null
         role: 'user' | 'admin'
+        lastLoginAt: number | null
         editions: string | null
         aliases: string | null
       }[]

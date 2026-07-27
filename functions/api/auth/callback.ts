@@ -15,10 +15,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   // Iedereen die ooit inlogt krijgt een account-rij (zichtbaar in Backstage).
+  const now = Date.now()
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO users (email, role, updated_at) VALUES (?, 'user', ?)`,
+    `INSERT INTO users (email, role, created_at, updated_at, last_login_at)
+     VALUES (?, 'user', ?, ?, ?)
+     ON CONFLICT(email) DO UPDATE SET last_login_at = excluded.last_login_at`,
   )
-    .bind(email, Date.now())
+    .bind(email, now, now, now)
     .run()
 
   const session = await createToken(env, email, 'sessie', SESSION_TTL_S * 1000)

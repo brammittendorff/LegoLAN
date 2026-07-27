@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { EDITION_YEAR, getProduct } from '../../shared/products'
 import { buildRoom } from '../../shared/seatmap'
-import { api, type AdminOverview } from '../lib/api'
+import { api, type AdminOverview, type AdminStats, type DayPoint } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
 import { euro } from '../lib/money'
@@ -11,7 +11,7 @@ import { euro } from '../lib/money'
 const EDITIE_JAREN = Array.from({ length: EDITION_YEAR - 2024 + 1 }, (_, i) => 2024 + i)
 
 type UserEdit = { firstName: string; lastName: string; nickname: string; editions: number[]; aliases: string }
-type Tab = 'verkoop' | 'plekken' | 'polos' | 'gebruikers'
+type Tab = 'verkoop' | 'plekken' | 'polos' | 'gebruikers' | 'grafieken'
 
 export default function Admin() {
   const { t, pick } = useLang()
@@ -19,6 +19,7 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>('verkoop')
   const [data, setData] = useState<AdminOverview | null>(null)
   const [users, setUsers] = useState<Awaited<ReturnType<typeof api.adminUsers>>['users'] | null>(null)
+  const [stats, setStats] = useState<AdminStats | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [newAdmin, setNewAdmin] = useState('')
@@ -39,10 +40,17 @@ export default function Admin() {
       .then((r) => setUsers(r.users))
       .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
 
+  const loadStats = () =>
+    api
+      .adminStats()
+      .then(setStats)
+      .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
+
   useEffect(() => {
     if (!isAdmin) return
     setError('')
     if (tab === 'gebruikers') void loadUsers()
+    else if (tab === 'grafieken') void loadStats()
     else void load()
   }, [isAdmin, tab])
 
@@ -86,6 +94,7 @@ export default function Admin() {
     { key: 'plekken', label: t('Plekken', 'Seats') },
     { key: 'polos', label: "Polo's" },
     { key: 'gebruikers', label: t('Gebruikers', 'Users') },
+    { key: 'grafieken', label: t('Grafieken', 'Charts') },
   ]
 
   return (
@@ -360,6 +369,31 @@ export default function Admin() {
         </TableSection>
       )}
 
+      {/* ------------------------------------------------ Grafieken */}
+      {tab === 'grafieken' && stats && (
+        <>
+          <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label={t('Omzet', 'Revenue')} value={euro(stats.totals.revenueCents)} />
+            <StatCard label={t('Betaalde bestellingen', 'Paid orders')} value={String(stats.totals.paidOrders)} />
+            <StatCard label={t('Plekken geclaimd', 'Seats claimed')} value={String(stats.totals.seatsClaimed)} />
+            <StatCard label={t('Accounts', 'Accounts')} value={String(stats.totals.accounts)} />
+          </section>
+          <section className="mt-6 grid gap-6 lg:grid-cols-2">
+            <BarChart title={t('Omzet per dag', 'Revenue per day')} points={stats.omzet} money />
+            <BarChart title={t('Betaalde bestellingen per dag', 'Paid orders per day')} points={stats.omzet} />
+            <BarChart title={t('Plekken geclaimd per dag', 'Seats claimed per day')} points={stats.plekken} />
+            <BarChart title={t('Laatst ingelogd per dag', 'Last sign-in per day')} points={stats.logins} />
+            <BarChart title={t('Nieuwe accounts per dag', 'New accounts per day')} points={stats.accounts} />
+          </section>
+          <p className="mt-6 text-center text-xs text-smoke/60">
+            {t(
+              'Logins tellen per account alleen de laatste keer; accounts van voor de meting tellen bij hun laatste profielwijziging.',
+              'Sign-ins count only the most recent one per account; accounts from before tracking count at their last profile change.',
+            )}
+          </p>
+        </>
+      )}
+
       {/* ------------------------------------------------ Gebruikers */}
       {tab === 'gebruikers' && (
         <>
@@ -409,6 +443,7 @@ export default function Admin() {
                   <th className="px-3 py-2">{t('Achternaam', 'Last name')}</th>
                   <th className="px-3 py-2">Nickname</th>
                   <th className="px-3 py-2">E-mail</th>
+                  <th className="px-3 py-2">{t('Laatste login', 'Last sign-in')}</th>
                   <th className="px-3 py-2">{t('Oude e-mails', 'Old emails')}</th>
                   <th className="px-3 py-2">{t('Edities', 'Editions')}</th>
                   <th className="px-3 py-2">{t('Actie', 'Action')}</th>
@@ -461,6 +496,9 @@ export default function Admin() {
                             />
                           </td>
                           <td className="px-3 py-2 text-smoke/70">{u.email}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-smoke/60">
+                            {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('nl-NL') : '-'}
+                          </td>
                           <td className="px-3 py-2">
                             <input
                               className="input !w-44 !py-1 text-xs"
@@ -533,6 +571,9 @@ export default function Admin() {
                           <td className="px-3 py-2 text-milk">{u.lastName ?? '-'}</td>
                           <td className="px-3 py-2 text-smoke/80">{u.nickname ?? '-'}</td>
                           <td className="px-3 py-2 text-smoke/70">{u.email}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-smoke/60">
+                            {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('nl-NL') : '-'}
+                          </td>
                           <td className="px-3 py-2 text-xs text-smoke/60">
                             {(u.aliases ?? '').split(' ').filter(Boolean).join(', ') || '-'}
                           </td>
@@ -599,7 +640,7 @@ export default function Admin() {
                   )
                 })}
                 {users !== null && users.length === 0 && (
-                  <EmptyRow cols={8}>{t('Nog geen accounts.', 'No accounts yet.')}</EmptyRow>
+                  <EmptyRow cols={9}>{t('Nog geen accounts.', 'No accounts yet.')}</EmptyRow>
                 )}
               </tbody>
             </table>
@@ -625,6 +666,93 @@ export default function Admin() {
     }
     void run(email, () => api.adminUpdateUser({ email, role: next }), loadUsers)
   }
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="card-velvet p-4">
+      <p className="text-sm text-smoke">{label}</p>
+      <p className="mt-1 text-xl font-bold text-milk">{value}</p>
+    </div>
+  )
+}
+
+/**
+ * Simpele staafgrafiek in SVG, geen chart-library nodig. Dagen zonder data
+ * worden opgevuld met 0 zodat het verloop klopt.
+ */
+function BarChart({ title, points, money }: { title: string; points: DayPoint[]; money?: boolean }) {
+  const { t } = useLang()
+
+  const filled: { day: string; value: number }[] = []
+  if (points.length > 0) {
+    const byDay = new Map(points.map((p) => [p.day, money ? (p.cents ?? 0) : p.n]))
+    const end = new Date(`${points[points.length - 1].day}T00:00:00Z`)
+    for (const d = new Date(`${points[0].day}T00:00:00Z`); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const key = d.toISOString().slice(0, 10)
+      filled.push({ day: key, value: byDay.get(key) ?? 0 })
+    }
+  }
+
+  const max = Math.max(1, ...filled.map((f) => f.value))
+  const labelStep = Math.max(1, Math.ceil(filled.length / 10))
+  const fmt = (v: number) => (money ? euro(v) : String(v))
+  const BAR = 44
+  const width = filled.length * BAR + 8
+
+  return (
+    <div className="card-velvet p-4">
+      <h3 className="font-label text-xs uppercase tracking-[0.25em] text-bulb">{title}</h3>
+      {filled.length === 0 ? (
+        <p className="mt-4 text-sm text-smoke/60">{t('Nog geen data.', 'No data yet.')}</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <svg viewBox={`0 0 ${width} 168`} className="h-42" style={{ minWidth: Math.min(width, 560) }}>
+            {filled.map((f, i) => {
+              const h = Math.round((f.value / max) * 108)
+              const x = 4 + i * BAR
+              return (
+                <g key={f.day}>
+                  <rect
+                    x={x + 4}
+                    y={132 - h}
+                    width={BAR - 8}
+                    height={Math.max(h, 2)}
+                    rx={3}
+                    fill="var(--color-neon)"
+                    opacity={f.value === 0 ? 0.25 : 0.9}
+                  />
+                  {f.value > 0 && (
+                    <text
+                      x={x + BAR / 2}
+                      y={124 - h}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fill="var(--color-milk)"
+                    >
+                      {fmt(f.value)}
+                    </text>
+                  )}
+                  {i % labelStep === 0 && (
+                    <text
+                      x={x + BAR / 2}
+                      y={150}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="var(--color-smoke)"
+                      opacity={0.7}
+                    >
+                      {`${f.day.slice(8, 10)}/${f.day.slice(5, 7)}`}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </svg>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function TableSection({

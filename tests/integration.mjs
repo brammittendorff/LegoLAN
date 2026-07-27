@@ -208,6 +208,27 @@ try {
     assert(csv.includes('koper@test.nl'), 'koper in export')
   })
 
+  await test('backstage: grafieken-statistieken (dagreeksen en totalen)', async () => {
+    let r = await jsonReq(base, '/api/admin/stats', { cookie })
+    assertEq(r.status, 403, 'user geweigerd')
+
+    const adminCookie = await sessionCookie('admin@test.nl')
+    r = await jsonReq(base, '/api/admin/stats', { cookie: adminCookie })
+    assertEq(r.status, 200, 'admin mag')
+    assert(r.data.totals.paidOrders >= 3, 'betaalde orders geteld')
+    assert(r.data.totals.revenueCents > 0, 'omzet geteld')
+    assert(r.data.totals.seatsClaimed >= 1, 'plekken geteld')
+    assert(r.data.omzet.length >= 1 && r.data.omzet[0].cents > 0, 'omzet per dag')
+    assert(r.data.plekken.length >= 1, 'plekken per dag')
+
+    // Login-callback zet last_login_at; die dag hoort in de loginreeks.
+    const { makeToken } = await import('./helpers.mjs')
+    const loginTok = await makeToken('lurker@test.nl', 'login', 60_000)
+    await fetch(`${base}/api/auth/callback?token=${encodeURIComponent(loginTok)}`, { redirect: 'manual' })
+    r = await jsonReq(base, '/api/admin/stats', { cookie: adminCookie })
+    assert(r.data.logins.some((p) => p.n >= 1), 'login geteld in dagreeks')
+  })
+
   await test('backstage: pending annuleren, betaald niet', async () => {
     d1(
       persist,

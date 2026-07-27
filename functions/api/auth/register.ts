@@ -45,11 +45,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Bestaat het account al? Dan alleen de inloglink sturen en het profiel
   // met rust laten (anders kan een vreemde andermans naam overschrijven).
   await env.DB.prepare(
-    `INSERT INTO users (email, first_name, last_name, nickname, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO users (email, first_name, last_name, nickname, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(email) DO NOTHING`,
   )
-    .bind(email, firstName, lastName, nickname, Date.now())
+    .bind(email, firstName, lastName, nickname, Date.now(), Date.now())
     .run()
 
   try {

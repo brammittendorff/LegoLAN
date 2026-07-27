@@ -106,10 +106,10 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
   // Elke betalende koper krijgt een account-rij (zichtbaar in Backstage;
   // een bestaand profiel wordt nooit overschreven).
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO users (email, first_name, last_name, role, updated_at)
-     VALUES (?, ?, ?, 'user', ?)`,
+    `INSERT OR IGNORE INTO users (email, first_name, last_name, role, created_at, updated_at)
+     VALUES (?, ?, ?, 'user', ?, ?)`,
   )
-    .bind(order.email.toLowerCase(), order.first_name, order.last_name, Date.now())
+    .bind(order.email.toLowerCase(), order.first_name, order.last_name, Date.now(), Date.now())
     .run()
 
   // Polo besteld met een opdruknaam en nog geen nickname? Dan is dat 'm.

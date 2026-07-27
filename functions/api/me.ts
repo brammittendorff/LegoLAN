@@ -17,8 +17,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   // Vangnet voor sessies van vóór de rij-bij-login-wijziging: zorg dat
   // iedere ingelogde bezoeker een account-rij heeft.
-  await env.DB.prepare(`INSERT OR IGNORE INTO users (email, role, updated_at) VALUES (?, 'user', ?)`)
-    .bind(email, Date.now())
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO users (email, role, created_at, updated_at) VALUES (?, 'user', ?, ?)`,
+  )
+    .bind(email, Date.now(), Date.now())
     .run()
 
   const user = await env.DB.prepare(
@@ -123,15 +125,15 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   if (nickname.length > 20) return err('Nickname mag maximaal 20 tekens zijn.')
 
   await env.DB.prepare(
-    `INSERT INTO users (email, first_name, last_name, nickname, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO users (email, first_name, last_name, nickname, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(email) DO UPDATE SET
        first_name = excluded.first_name,
        last_name = excluded.last_name,
        nickname = excluded.nickname,
        updated_at = excluded.updated_at`,
   )
-    .bind(email, firstName || null, lastName || null, nickname || null, Date.now())
+    .bind(email, firstName || null, lastName || null, nickname || null, Date.now(), Date.now())
     .run()
 
   return json({ ok: true })

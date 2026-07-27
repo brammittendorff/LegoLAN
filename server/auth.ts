@@ -73,10 +73,10 @@ export async function verifyToken(env: Env, token: string, kind: TokenKind): Pro
 /** Maakt alle uitstaande loginlinks en sessies van dit adres ongeldig. */
 export async function invalidateAllSessions(env: Env, email: string): Promise<void> {
   await env.DB.prepare(
-    `INSERT INTO users (email, role, session_version, updated_at) VALUES (?, 'user', 1, ?)
+    `INSERT INTO users (email, role, session_version, created_at, updated_at) VALUES (?, 'user', 1, ?, ?)
      ON CONFLICT(email) DO UPDATE SET session_version = session_version + 1, updated_at = excluded.updated_at`,
   )
-    .bind(email, Date.now())
+    .bind(email, Date.now(), Date.now())
     .run()
 }
 

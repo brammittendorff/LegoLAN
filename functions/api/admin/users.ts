@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const rs = await env.DB.prepare(
     `SELECT u.email, u.first_name AS firstName, u.last_name AS lastName,
-            u.nickname, u.role,
+            u.nickname, u.role, u.last_login_at AS lastLoginAt,
             (SELECT group_concat(a.edition, ' ') FROM attendees a
               WHERE a.email = u.email
                  OR a.email IN (SELECT alias FROM email_aliases WHERE user_email = u.email)) AS editions,
@@ -90,8 +90,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   const nickname = clean(body.nickname, 20)
 
   await env.DB.prepare(
-    `INSERT INTO users (email, first_name, last_name, nickname, role, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO users (email, first_name, last_name, nickname, role, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(email) DO UPDATE SET
        first_name = excluded.first_name,
        last_name = excluded.last_name,
@@ -105,6 +105,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
       lastName !== undefined ? lastName : (existing?.last_name ?? null),
       nickname !== undefined ? nickname : (existing?.nickname ?? null),
       role,
+      Date.now(),
       Date.now(),
     )
     .run()
