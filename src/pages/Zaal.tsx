@@ -297,15 +297,20 @@ export default function Zaal() {
       </div>
 
       {claimedList.length > 0 && (
-        <section className="mx-auto mt-14 max-w-md">
+        <section className="mx-auto mt-14 max-w-3xl">
           <h2 className="text-center font-label text-xs uppercase tracking-[0.25em] text-bulb">
             {t('Wie zit waar', 'Who sits where')}
           </h2>
-          <ul className="card-velvet mt-4 grid grid-cols-2 gap-x-6 gap-y-1 p-4 text-sm">
+          <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {claimedList.map((claimed) => (
-              <li key={claimed.no} className="flex justify-between">
-                <span className="font-label text-smoke/70">#{claimed.no}</span>
-                <span className="truncate pl-2 text-milk">{claimed.nick}</span>
+              <li
+                key={claimed.no}
+                className="card-velvet flex items-center gap-2 px-3 py-2 text-sm"
+              >
+                <span className="w-9 shrink-0 text-right font-label text-xs text-bulb">
+                  #{claimed.no}
+                </span>
+                <span className="min-w-0 truncate text-milk">{claimed.nick}</span>
               </li>
             ))}
           </ul>
