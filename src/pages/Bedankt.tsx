@@ -86,7 +86,7 @@ export default function Bedankt() {
   }
 
   if (order.status === 'paid') {
-    const hasSeats = order.seatQuota.seat + order.seatQuota.dayseat > 0
+    const hasSeats = order.seatQuota > 0
     return (
       <Wrap>
         <h1 className="neon-script text-6xl md:text-7xl">

@@ -16,7 +16,8 @@ export const EDITION_YEAR = 2026
  * De huur-PC's zijn fysiek dezelfde twee machines, of je ze nu 1 of 3 dagen huurt.
  */
 export const CAPACITY_POOLS: Record<string, number> = {
-  computerhuur: 2,
+  computerhuur: 2, // 2 huur-PC's per dag
+  dagticket: 6, // max 6 daggasten per dag
 }
 
 /** De dagen van het event (vr 9, za 10, zo 11 oktober). */
@@ -66,8 +67,6 @@ export type Product = {
   perDay?: boolean
   /** Aantal LAN-plekken dat één stuk geeft (alleen tickets) */
   seatsPerUnit?: number
-  /** Welk soort plek dit ticket mag claimen op de plattegrond */
-  seatKind?: 'seat' | 'dayseat'
   /** Vraagt bij bestellen om een naam voor de opdruk (bv. de polo) */
   needsCustomName?: boolean
 }
@@ -82,22 +81,22 @@ export const PRODUCTS: readonly Product[] = [
     },
     priceCents: 2500,
     type: 'ticket',
-    capacity: 34, // = aantal #-plekken in shared/seatmap.ts
+    capacity: 34, // de plattegrond heeft 40 plekken; 6 marge voor daggasten
     seatsPerUnit: 1,
-    seatKind: 'seat',
   },
   {
     id: 'ticket-dag-2026',
     name: { nl: 'Dag Ticket', en: 'Day Ticket' },
     tagline: {
-      nl: 'One night stand: één dag langskomen. Geen verplichtingen, geen oordeel.',
-      en: 'One night stand: drop by for a single day. No strings attached, no judgement.',
+      nl: 'One night stand: kom een dag (of twee) langs. Geen verplichtingen, geen oordeel.',
+      en: 'One night stand: drop by for a day (or two). No strings attached, no judgement.',
     },
-    priceCents: 1000,
+    priceCents: 1000, // per dag
     type: 'ticket',
-    capacity: 6, // = aantal o-plekken (1 Day Fly) in shared/seatmap.ts
+    capacity: null,
+    pool: 'dagticket',
+    perDay: true,
     seatsPerUnit: 1,
-    seatKind: 'dayseat',
   },
   {
     id: 'computerhuur-2026',

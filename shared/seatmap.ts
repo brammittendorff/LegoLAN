@@ -1,7 +1,7 @@
 /*
  * De plattegrond van de zaal, als tekening. Eén teken per vak:
  *
- *   #  LAN-plek (weekend)      o  LAN-plek voor dagtickets ("one night stand")
+ *   #  LAN-plek
  *   B  bar                     D  deur
  *   S  netwerkswitch           F  openhaard / chillhoek
  *   .  vloer                   (spatie) niets
@@ -16,19 +16,18 @@ export const ROOM_NAME = 'DE ZAAL'
 
 // Overgenomen van de LAN AREA-plattegrond van 2025.
 export const ROOM_ROWS: readonly string[] = [
-  'BBBBBo#..########',
-  'BBBBBo#..........',
-  'BBBBBo#.........F',
-  'BBBBBo#..######SF',
-  'BBBBBo#..######SF',
-  'DBBBBo#.........F',
+  'BBBBB##..########',
+  'BBBBB##..........',
+  'BBBBB##.........F',
+  'BBBBB##..######SF',
+  'BBBBB##..######SF',
+  'DBBBB##.........F',
   'BBBBB............',
   'BBBBBBDDD########',
 ]
 
 export type CellKind =
   | 'seat'
-  | 'dayseat'
   | 'bar'
   | 'door'
   | 'switch'
@@ -46,7 +45,6 @@ export type Cell = {
 
 const CHAR_KIND: Record<string, CellKind> = {
   '#': 'seat',
-  o: 'dayseat',
   B: 'bar',
   D: 'door',
   S: 'switch',
@@ -61,7 +59,7 @@ export function buildRoom(): Cell[][] {
     [...rowStr].map((ch, col) => {
       const kind = CHAR_KIND[ch] ?? 'void'
       const cell: Cell = { kind, row, col }
-      if (kind === 'seat' || kind === 'dayseat') {
+      if (kind === 'seat') {
         seatNo += 1
         cell.seatNo = seatNo
         cell.seatId = `r${row}c${col}`
@@ -71,15 +69,13 @@ export function buildRoom(): Cell[][] {
   )
 }
 
-/** seatId → soort plek, voor validatie op de server */
-export function seatKinds(): Map<string, 'seat' | 'dayseat'> {
-  const map = new Map<string, 'seat' | 'dayseat'>()
+/** Alle geldige plek-ids, voor validatie op de server */
+export function allSeatIds(): Set<string> {
+  const ids = new Set<string>()
   for (const row of buildRoom()) {
     for (const cell of row) {
-      if (cell.seatId && (cell.kind === 'seat' || cell.kind === 'dayseat')) {
-        map.set(cell.seatId, cell.kind)
-      }
+      if (cell.seatId) ids.add(cell.seatId)
     }
   }
-  return map
+  return ids
 }

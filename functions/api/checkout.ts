@@ -108,11 +108,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
   if (wantedPerDay.size > 0) {
+    const POOL_FULL: Record<string, (day: string) => string> = {
+      computerhuur: (day) => `Alle huur-PC's zijn al geboekt op ${day}. Kies een andere dag.`,
+      dagticket: (day) => `De dagtickets voor ${day} zijn uitverkocht. Kies een andere dag.`,
+    }
     const booked = await bookedPerPoolDay(env)
     for (const [key, qty] of wantedPerDay) {
       const [pool, day] = key.split(':')
       if ((booked[key] ?? 0) + qty > (CAPACITY_POOLS[pool] ?? 0)) {
-        return err(`Alle huur-PC's zijn al geboekt op ${day}. Kies een andere dag.`, 409)
+        return err(POOL_FULL[pool]?.(day) ?? `Uitverkocht op ${day}.`, 409)
       }
     }
   }

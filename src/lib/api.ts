@@ -40,8 +40,8 @@ export type OrderInfo = {
   status: OrderStatus
   amountCents: number
   items: { name: L10n; qty: number; size?: string; customName?: string }[]
-  /** Nog te claimen plekken per soort (alleen bij betaalde orders) */
-  seatQuota: { seat: number; dayseat: number }
+  /** Aantal te claimen plekken (alleen bij betaalde orders) */
+  seatQuota: number
   seatsClaimed: { seatId: string; nickname: string }[]
 }
 

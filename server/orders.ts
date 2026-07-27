@@ -66,13 +66,13 @@ export async function getOrderItems(env: Env, orderId: string): Promise<OrderIte
   return rs.results
 }
 
-/** Hoeveel plekken van elk soort deze order in totaal mag claimen. */
-export function seatQuota(items: OrderItemRow[]): { seat: number; dayseat: number } {
-  const quota = { seat: 0, dayseat: 0 }
+/** Hoeveel plekken op de plattegrond deze order in totaal mag claimen. */
+export function seatQuota(items: OrderItemRow[]): number {
+  let quota = 0
   for (const item of items) {
     const product = getProduct(item.product_id)
-    if (product?.type === 'ticket' && product.seatKind) {
-      quota[product.seatKind] += (product.seatsPerUnit ?? 1) * item.qty
+    if (product?.type === 'ticket') {
+      quota += (product.seatsPerUnit ?? 1) * item.qty
     }
   }
   return quota
@@ -95,7 +95,7 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
 
   // Geschiedenis: een betaald ticket maakt je blijvend deelnemer van deze
   // editie (ook als de catalogus volgend jaar verandert).
-  if (quota.seat + quota.dayseat > 0) {
+  if (quota > 0) {
     await env.DB.prepare(
       `INSERT OR IGNORE INTO attendees (email, edition, source, name) VALUES (?, ?, 'order', ?)`,
     )
@@ -115,7 +115,7 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
   })
   const total = (order.amount_cents / 100).toFixed(2).replace('.', ',')
 
-  const hasSeats = quota.seat + quota.dayseat > 0
+  const hasSeats = quota > 0
   const html = renderEmail({
     heading: `Welkom bij de club, ${escapeHtml(order.name)}`,
     bodyHtml: `
@@ -137,7 +137,7 @@ export async function markOrderPaid(env: Env, orderId: string, origin: string): 
     ...itemLines.map((l) => `- ${l}`),
     '',
     `Totaal: € ${total}`,
-    ...(quota.seat + quota.dayseat > 0 ? ['', `Kies je plek in de zaal: ${seatUrl}`] : []),
+    ...(hasSeats ? ['', `Kies je plek in de zaal: ${seatUrl}`] : []),
   ].join('\n')
 
   try {

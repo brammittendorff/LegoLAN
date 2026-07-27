@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { buildRoom, seatKinds, type Cell } from '../../shared/seatmap'
+import { buildRoom, type Cell } from '../../shared/seatmap'
 import { api, type OrderInfo } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
@@ -8,12 +8,10 @@ import { useLang } from '../lib/i18n'
 export default function Zaal() {
   const { t } = useLang()
   const room = useMemo(buildRoom, [])
-  const kinds = useMemo(seatKinds, [])
   const cols = room[0]?.length ?? 0
 
   const legend = [
     { label: t('Vrije plek', 'Free seat'), cls: 'border border-grape/50 bg-velvet-2' },
-    { label: t('Vrije dagplek', 'Free day seat'), cls: 'border border-cyan-400/50 bg-velvet-2' },
     { label: t('Bezet', 'Taken'), cls: 'bg-neon' },
     { label: t('Bar', 'Bar'), cls: 'bg-grape/40' },
     { label: t('Deur', 'Door'), cls: 'bg-red-500/60' },
@@ -74,38 +72,12 @@ export default function Zaal() {
       .catch(() => setOrder(null))
   }, [orderId])
 
-  const remaining = useMemo(() => {
-    if (!order || order.status !== 'paid') return { seat: 0, dayseat: 0 }
-    const used = { seat: 0, dayseat: 0 }
-    for (const claim of order.seatsClaimed) {
-      const kind = kinds.get(claim.seatId)
-      if (kind) used[kind] += 1
-    }
-    return {
-      seat: order.seatQuota.seat - used.seat,
-      dayseat: order.seatQuota.dayseat - used.dayseat,
-    }
-  }, [order, kinds])
-
-  const canClaimSomething = remaining.seat > 0 || remaining.dayseat > 0
+  const remaining =
+    order?.status === 'paid' ? order.seatQuota - order.seatsClaimed.length : 0
+  const canClaim = remaining > 0
 
   const claim = async (cell: Cell) => {
-    if (!orderId || !cell.seatId) return
-    const kind = cell.kind === 'dayseat' ? 'dayseat' : 'seat'
-    if (remaining[kind] <= 0) {
-      setNotice(
-        kind === 'dayseat'
-          ? t(
-              'Je hebt geen dagticket (meer) om een dagplek mee te claimen.',
-              'You have no (more) day tickets to claim a day seat with.',
-            )
-          : t(
-              'Je weekendtickets zijn al aan plekken gekoppeld.',
-              'Your weekend tickets are already linked to seats.',
-            ),
-      )
-      return
-    }
+    if (!orderId || !cell.seatId || !canClaim) return
     const nick = nickname.trim()
     if (!nick) {
       setNotice(
@@ -163,8 +135,6 @@ export default function Zaal() {
     // LAN-plek
     const taken = cell.seatId ? claims.get(cell.seatId) : undefined
     const mine = cell.seatId ? mySeats.has(cell.seatId) : false
-    const isDay = cell.kind === 'dayseat'
-    const claimTarget = !taken && canClaimSomething && remaining[isDay ? 'dayseat' : 'seat'] > 0
 
     if (taken) {
       return (
@@ -184,13 +154,11 @@ export default function Zaal() {
       <button
         key={key}
         type="button"
-        disabled={!claimTarget || busySeat !== null}
+        disabled={!canClaim || busySeat !== null}
         onClick={() => void claim(cell)}
-        title={`${t('Plek', 'Seat')} ${cell.seatNo}${isDay ? t(' (dagplek)', ' (day seat)') : ''} - ${t('vrij', 'free')}`}
-        className={`${base} border bg-velvet-2 ${
-          isDay ? 'border-cyan-400/50 text-cyan-200/80' : 'border-grape/50 text-smoke/80'
-        } ${
-          claimTarget
+        title={`${t('Plek', 'Seat')} ${cell.seatNo} - ${t('vrij', 'free')}`}
+        className={`${base} border border-grape/50 bg-velvet-2 text-smoke/80 ${
+          canClaim
             ? 'cursor-pointer transition-shadow hover:border-neon hover:text-milk hover:shadow-[0_0_10px_rgb(255_46_136/0.6)]'
             : 'cursor-default'
         } ${busySeat === cell.seatId ? 'animate-pulse' : ''}`}
@@ -220,22 +188,13 @@ export default function Zaal() {
         </p>
       </header>
 
-      {order?.status === 'paid' && canClaimSomething && (
+      {canClaim && (
         <div className="neon-box mx-auto mt-10 max-w-xl bg-velvet/70 p-6 text-center">
           <p className="text-milk">
-            {t('Je hebt nog', 'You still have')}{' '}
-            <strong>
-              {remaining.seat > 0 &&
-                (remaining.seat === 1
-                  ? t('1 plek', '1 seat')
-                  : t(`${remaining.seat} plekken`, `${remaining.seat} seats`))}
-              {remaining.seat > 0 && remaining.dayseat > 0 && t(' en ', ' and ')}
-              {remaining.dayseat > 0 &&
-                (remaining.dayseat === 1
-                  ? t('1 dagplek', '1 day seat')
-                  : t(`${remaining.dayseat} dagplekken`, `${remaining.dayseat} day seats`))}
-            </strong>{' '}
-            {t('te claimen. Vul je naam in en klik op een vrije plek.', 'to claim. Fill in your name and click a free seat.')}
+            {remaining === 1
+              ? t('Je hebt nog 1 plek te claimen.', 'You have 1 seat left to claim.')
+              : t(`Je hebt nog ${remaining} plekken te claimen.`, `You have ${remaining} seats left to claim.`)}{' '}
+            {t('Vul je naam in en klik op een vrije plek.', 'Fill in your name and click a free seat.')}
           </p>
           <input
             className="input mx-auto mt-4 max-w-xs text-center"
@@ -248,7 +207,7 @@ export default function Zaal() {
         </div>
       )}
 
-      {order?.status === 'paid' && !canClaimSomething && mySeats.size > 0 && (
+      {order?.status === 'paid' && !canClaim && mySeats.size > 0 && (
         <p className="mt-8 text-center text-smoke">
           {t(
             'Al je plekken zijn geclaimd (goud op de kaart). Tot op de LAN.',

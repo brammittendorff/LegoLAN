@@ -62,7 +62,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       size: i.size ?? undefined,
       customName: i.custom_name ?? undefined,
     })),
-    seatQuota: order.status === 'paid' ? seatQuota(items) : { seat: 0, dayseat: 0 },
+    seatQuota: order.status === 'paid' ? seatQuota(items) : 0,
     seatsClaimed: seatsClaimed.results,
   })
 }
