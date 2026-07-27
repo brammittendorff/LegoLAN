@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { EDITION_YEAR } from '../../shared/products'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
@@ -81,7 +82,9 @@ export default function Fotos() {
           )}
 
           {albums?.configured &&
-            albums.albums.map((album) => (
+            albums.albums
+              .filter((album) => album.photos.length > 0 || album.edition < EDITION_YEAR)
+              .map((album) => (
               <section key={album.edition} className="mt-14 first:mt-0">
                 <h2 className="text-center">
                   <span className="neon-script text-4xl">LEGOLAN {album.edition}</span>
