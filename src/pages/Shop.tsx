@@ -39,7 +39,7 @@ export default function Shop() {
         <Link to="/zaal" className="text-neon hover:underline">
           {t('de plattegrond', 'the floor plan')}
         </Link>
-        . {t('Polo besteld? We mailen je over de opdruk.', 'Ordered a polo? We will email you about the print.')}
+        .
       </p>
     </div>
   )
