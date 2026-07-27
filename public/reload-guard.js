@@ -11,7 +11,7 @@ window.addEventListener(
     try {
       if (sessionStorage.getItem('legolan-herladen')) return
       sessionStorage.setItem('legolan-herladen', '1')
-    } catch (_) {
+    } catch {
       /* private mode: dan maar zonder herhaalbeveiliging */
     }
     location.reload()
