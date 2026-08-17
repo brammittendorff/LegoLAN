@@ -202,10 +202,15 @@ export default function Zaal() {
         )
       } else {
         setNotice(
-          t(
-            `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
-            `Seat ${cell.seatNo} is yours. Bring on that weekend.`,
-          ),
+          invited
+            ? t(
+                `Plek ${cell.seatNo} staat op naam van ${nick}; ${mail} heeft een inloglink gekregen om zijn naam zelf aan te passen.`,
+                `Seat ${cell.seatNo} is in the name of ${nick}; ${mail} received a sign-in link to adjust the name.`,
+              )
+            : t(
+                `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
+                `Seat ${cell.seatNo} is yours. Bring on that weekend.`,
+              ),
         )
       }
     } catch (err) {
