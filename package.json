@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "node tests/integration.mjs",
+    "test:ui": "node tests/ui-zaal.mjs",
     "test:e2e": "node tests/e2e-mollie.mjs",
     "preview": "vite preview",
     "db:migrate:local": "wrangler d1 migrations apply legolan --local",

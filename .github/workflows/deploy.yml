@@ -31,6 +31,9 @@ jobs:
       - name: Integratietests (verse database, nepbetalingen)
         run: npm test
 
+      - name: UI-test op de plattegrond (echte browser)
+        run: npm run test:ui
+
       - name: End-to-end met echte Mollie-testbetaling + plek claimen
         run: npm run test:e2e
         env:
