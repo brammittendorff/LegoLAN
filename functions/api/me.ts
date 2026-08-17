@@ -59,13 +59,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
   if (!nickname) {
+    // Je eigen plek gaat voor. Een plek die je voor iemand anders claimde staat
+    // op diens naam, en die hoort niet jouw profiel te kapen.
     const seat = await env.DB.prepare(
       `SELECT s.nickname FROM seats s
-         JOIN orders o ON o.id = s.order_id
-        WHERE lower(o.email) = ?
-        ORDER BY s.claimed_at DESC LIMIT 1`,
+         LEFT JOIN orders o ON o.id = s.order_id
+        WHERE s.owner_email = ? OR (lower(o.email) = ? AND s.owner_email IS NULL)
+        ORDER BY CASE WHEN s.owner_email = ? THEN 0 ELSE 1 END, s.claimed_at DESC
+        LIMIT 1`,
     )
-      .bind(email)
+      .bind(email, email, email)
       .first<{ nickname: string }>()
     if (seat?.nickname) nickname = seat.nickname
   }

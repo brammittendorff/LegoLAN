@@ -196,6 +196,10 @@ try {
     r = await jsonReq(base, '/api/me', { cookie: vriend })
     assert(r.data.seats.some((s) => s.seatId === 'r0c13'), 'plek op profiel van de vriend')
 
+    // ...en de koper houdt zijn eigen naam, niet die van zijn vriend.
+    r = await jsonReq(base, '/api/me', { cookie: await sessionCookie('duo@test.nl') })
+    assertEq(r.data.nickname, 'Duo-een', 'nickname van de koper blijft zijn eigen plek')
+
     // ...en past daar zonder order-id zijn eigen naam aan.
     r = await jsonReq(base, '/api/seats/update', {
       method: 'POST',
