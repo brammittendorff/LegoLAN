@@ -28,10 +28,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const quota = seatQuota(items)
     if (quota === 0) continue
     const seats = await env.DB.prepare(
-      `SELECT seat_id AS seatId, nickname FROM seats WHERE order_id = ? AND edition = ?`,
+      `SELECT seat_id AS seatId, nickname, owner_email AS ownerEmail
+         FROM seats WHERE order_id = ? AND edition = ?`,
     )
       .bind(row.id, EDITION_YEAR)
-      .all<{ seatId: string; nickname: string }>()
+      .all<{ seatId: string; nickname: string; ownerEmail: string | null }>()
     orders.push({ id: row.id, seatQuota: quota, seatsClaimed: seats.results })
   }
 

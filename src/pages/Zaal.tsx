@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { EDITION_YEAR } from '../../shared/products'
 import { buildRoom, type Cell } from '../../shared/seatmap'
-import { api } from '../lib/api'
+import { api, type SeatClaim } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
 import LoginForm from '../components/LoginForm'
@@ -9,7 +10,18 @@ import LoginForm from '../components/LoginForm'
 type ClaimOrder = {
   id: string
   seatQuota: number
-  seatsClaimed: { seatId: string; nickname: string }[]
+  seatsClaimed: SeatClaim[]
+}
+
+/** Een plek die je zelf mag bijwerken. `orderId` ontbreekt bij een plek die aan jou gekoppeld is. */
+type MySeat = {
+  orderId: string | undefined
+  seatId: string
+  nickname: string
+  ownerEmail: string | null
+  seatNo: number
+  /** Uit je eigen bestelling (dan mag je ook het e-mailadres zetten) */
+  mine: boolean
 }
 
 export default function Zaal() {
@@ -38,8 +50,12 @@ export default function Zaal() {
       return ''
     }
   })
-  // Naam-in-bewerking per geclaimde plek (leeg = zoals hij in de database staat)
+  // Naam en e-mail in bewerking per geclaimde plek; ontbreekt de sleutel, dan
+  // staat het veld zoals het in de database staat.
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({})
+  const [emailDrafts, setEmailDrafts] = useState<Record<string, string>>({})
+  // Adres van wie op de plek komt die je nu kiest (optioneel)
+  const [claimEmail, setClaimEmail] = useState('')
   const [busySeat, setBusySeat] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const { user, loading: authLoading, refresh } = useAuth()
@@ -99,18 +115,42 @@ export default function Zaal() {
     [room],
   )
 
-  // Jouw eigen plekken, met de naam die erop staat: per plek aanpasbaar,
-  // want wie voor twee mensen bestelt heeft twee namen nodig.
-  const mySeats = orders
-    .flatMap((o) =>
+  // Jouw eigen plekken, met naam en (voor de koper) het adres van wie er zit.
+  // Plekken uit je bestelling beheer je volledig; een plek die iemand anders
+  // aan jou koppelde kun je alleen een andere naam geven.
+  const mySeats: MySeat[] = [
+    ...orders.flatMap((o) =>
       o.seatsClaimed.map((s) => ({
         orderId: o.id,
         seatId: s.seatId,
         nickname: s.nickname,
+        ownerEmail: s.ownerEmail,
         seatNo: seatNos.get(s.seatId) ?? 0,
+        mine: true,
       })),
-    )
-    .sort((a, b) => a.seatNo - b.seatNo)
+    ),
+    ...(user?.seats ?? [])
+      .filter(
+        (s) =>
+          s.edition === EDITION_YEAR &&
+          !orders.some((o) => o.seatsClaimed.some((c) => c.seatId === s.seatId)),
+      )
+      .map((s) => ({
+        orderId: undefined,
+        seatId: s.seatId,
+        nickname: s.nickname,
+        ownerEmail: null,
+        seatNo: s.seatNo,
+        mine: false,
+      })),
+  ].sort((a, b) => a.seatNo - b.seatNo)
+
+  // Link om door te sturen: wie hem heeft claimt de resterende plekken van deze
+  // bestelling zelf (en zet zijn eigen naam erop).
+  const shareOrderId = orders.find((o) => o.seatsClaimed.length < o.seatQuota)?.id
+  const shareLink = shareOrderId
+    ? `${window.location.origin}/zaal?order=${encodeURIComponent(shareOrderId)}`
+    : ''
 
   const claim = async (cell: Cell) => {
     const target = orders.find((o) => o.seatsClaimed.length < o.seatQuota)
@@ -136,17 +176,29 @@ export default function Zaal() {
       /* jammer dan */
     }
     const meer = remaining > 1
+    const mail = claimEmail.trim().toLowerCase()
     try {
-      await api.claimSeat({ orderId: target.id, seatId: cell.seatId, nickname: nick })
+      const { invited } = await api.claimSeat({
+        orderId: target.id,
+        seatId: cell.seatId,
+        nickname: nick,
+        email: mail || undefined,
+      })
       await Promise.all([refreshSeats(), loadOrders()])
       void refresh() // profiel bijwerken zodat /account de plek meteen toont
+      setClaimEmail('')
       if (meer) {
         setNickname('') // volgende plek is vaak voor iemand anders
         setNotice(
-          t(
-            `Plek ${cell.seatNo} staat op naam van ${nick}. Vul nu de naam voor de volgende plek in.`,
-            `Seat ${cell.seatNo} is in the name of ${nick}. Now fill in the name for the next seat.`,
-          ),
+          invited
+            ? t(
+                `Plek ${cell.seatNo} staat op naam van ${nick}, en ${mail} heeft een inloglink gekregen. Vul nu de volgende plek in.`,
+                `Seat ${cell.seatNo} is in the name of ${nick}, and ${mail} received a sign-in link. Now fill in the next seat.`,
+              )
+            : t(
+                `Plek ${cell.seatNo} staat op naam van ${nick}. Vul nu de naam voor de volgende plek in.`,
+                `Seat ${cell.seatNo} is in the name of ${nick}. Now fill in the name for the next seat.`,
+              ),
         )
       } else {
         setNotice(
@@ -164,7 +216,7 @@ export default function Zaal() {
     }
   }
 
-  const rename = async (seat: { orderId: string; seatId: string; nickname: string; seatNo: number }) => {
+  const saveSeat = async (seat: MySeat) => {
     const nick = (nameDrafts[seat.seatId] ?? seat.nickname).trim()
     if (nick.length < 2) {
       setNotice(
@@ -172,21 +224,35 @@ export default function Zaal() {
       )
       return
     }
+    const draftMail = emailDrafts[seat.seatId]
+    const mail = (draftMail ?? seat.ownerEmail ?? '').trim().toLowerCase()
     setBusySeat(seat.seatId)
     setNotice('')
     try {
-      await api.renameSeat({ orderId: seat.orderId, seatId: seat.seatId, nickname: nick })
-      setNameDrafts(({ [seat.seatId]: _weg, ...rest }) => rest)
+      const { invited } = await api.updateSeat({
+        orderId: seat.orderId,
+        seatId: seat.seatId,
+        nickname: nick,
+        // Alleen meesturen als de koper het veld heeft aangeraakt; leeg = ontkoppelen.
+        email: seat.mine && draftMail !== undefined ? mail : undefined,
+      })
+      setNameDrafts(({ [seat.seatId]: _naam, ...rest }) => rest)
+      setEmailDrafts(({ [seat.seatId]: _mail, ...rest }) => rest)
       await Promise.all([refreshSeats(), loadOrders()])
       void refresh()
       setNotice(
-        t(
-          `Plek ${seat.seatNo} staat nu op naam van ${nick}.`,
-          `Seat ${seat.seatNo} is now in the name of ${nick}.`,
-        ),
+        invited
+          ? t(
+              `Plek ${seat.seatNo} staat op naam van ${nick}; ${mail} heeft een inloglink gekregen.`,
+              `Seat ${seat.seatNo} is in the name of ${nick}; ${mail} received a sign-in link.`,
+            )
+          : t(
+              `Plek ${seat.seatNo} staat nu op naam van ${nick}.`,
+              `Seat ${seat.seatNo} is now in the name of ${nick}.`,
+            ),
       )
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : t('Naam opslaan mislukte.', 'Saving the name failed.'))
+      setNotice(err instanceof Error ? err.message : t('Opslaan mislukte.', 'Saving failed.'))
     } finally {
       setBusySeat(null)
     }
@@ -365,6 +431,59 @@ export default function Zaal() {
                   'Gamer name for the seat you pick now',
                 )}
               />
+              <input
+                type="email"
+                className="input mx-auto mt-2 max-w-xs text-center"
+                placeholder={t('E-mail van wie er zit (optie)', 'Email of who sits there (optional)')}
+                value={claimEmail}
+                onChange={(e) => setClaimEmail(e.target.value)}
+                aria-label={t(
+                  'E-mailadres van wie op deze plek zit',
+                  'Email address of who sits in this seat',
+                )}
+              />
+              <p className="mx-auto mt-2 max-w-sm text-xs text-smoke/60">
+                {t(
+                  'Claim je voor iemand anders? Vul zijn e-mailadres in, dan krijgt hij een inloglink en past hij zijn eigen naam aan. Laat leeg voor je eigen plek.',
+                  'Claiming for someone else? Fill in their email and they get a sign-in link to adjust their own name. Leave empty for your own seat.',
+                )}
+              </p>
+
+              {shareOrderId && (
+                <div className="mt-5 border-t border-grape/30 pt-4">
+                  <p className="text-sm text-smoke/80">
+                    {t(
+                      'Laat hem liever zelf kiezen? Stuur deze link, dan pakt hij zijn eigen plek en naam.',
+                      'Rather let them pick? Send this link and they choose their own seat and name.',
+                    )}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                    <input
+                      readOnly
+                      className="input min-w-0 flex-1 text-xs"
+                      value={shareLink}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label={t('Deelbare link naar je plekken', 'Shareable link to your seats')}
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost !px-4 !py-1.5 text-xs"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(shareLink)
+                        setNotice(t('Link gekopieerd.', 'Link copied.'))
+                      }}
+                    >
+                      {t('Kopieer link', 'Copy link')}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-smoke/60">
+                    {t(
+                      'Wie deze link heeft kan de plekken van deze bestelling kiezen en wijzigen, dus stuur hem alleen naar je eigen groepje.',
+                      'Anyone with this link can pick and change the seats of this order, so only send it to your own group.',
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -375,14 +494,17 @@ export default function Zaal() {
               </h2>
               <p className="mt-2 text-center text-sm text-smoke/80">
                 {t(
-                  'Zet per plek de naam van wie er zit. Verkeerde naam ingevuld? Pas hem hier aan.',
-                  'Put the name of whoever sits there on each seat. Wrong name? Change it here.',
+                  'Zet per plek de naam van wie er zit, en eventueel zijn e-mailadres. Met een adres erbij beheert hij zijn eigen naam en staat hij als zichzelf in onze lijst.',
+                  'Set the name of whoever sits there per seat, and optionally their email. With an email they manage their own name and appear as themselves in our list.',
                 )}
               </p>
-              <ul className="mt-4 space-y-2">
+              <ul className="mt-4 space-y-3">
                 {mySeats.map((seat) => {
                   const draft = nameDrafts[seat.seatId] ?? seat.nickname
-                  const changed = draft.trim() !== seat.nickname
+                  const mailDraft = emailDrafts[seat.seatId] ?? seat.ownerEmail ?? ''
+                  const changed =
+                    draft.trim() !== seat.nickname ||
+                    mailDraft.trim().toLowerCase() !== (seat.ownerEmail ?? '')
                   return (
                     <li key={seat.seatId} className="flex flex-wrap items-center gap-2">
                       <span className="w-9 shrink-0 text-right font-label text-xs text-bulb">
@@ -400,24 +522,41 @@ export default function Zaal() {
                           `Name on seat ${seat.seatNo}`,
                         )}
                       />
+                      {seat.mine && (
+                        <input
+                          type="email"
+                          className="input min-w-0 flex-1"
+                          placeholder={t('E-mail (optie)', 'Email (optional)')}
+                          value={mailDraft}
+                          onChange={(e) =>
+                            setEmailDrafts((d) => ({ ...d, [seat.seatId]: e.target.value }))
+                          }
+                          aria-label={t(
+                            `E-mailadres op plek ${seat.seatNo}`,
+                            `Email address on seat ${seat.seatNo}`,
+                          )}
+                        />
+                      )}
                       <button
                         type="button"
                         className="btn-neon !px-4 !py-1.5 text-xs"
                         disabled={!changed || busySeat !== null}
-                        onClick={() => void rename(seat)}
+                        onClick={() => void saveSeat(seat)}
                       >
                         {busySeat === seat.seatId
                           ? t('Momentje...', 'One moment...')
-                          : t('Naam opslaan', 'Save name')}
+                          : t('Opslaan', 'Save')}
                       </button>
-                      <button
-                        type="button"
-                        className="btn-ghost !px-4 !py-1.5 text-xs"
-                        disabled={busySeat !== null}
-                        onClick={() => void release(seat.seatId, seat.seatNo)}
-                      >
-                        {t('Vrijgeven', 'Release')}
-                      </button>
+                      {seat.mine && (
+                        <button
+                          type="button"
+                          className="btn-ghost !px-4 !py-1.5 text-xs"
+                          disabled={busySeat !== null}
+                          onClick={() => void release(seat.seatId, seat.seatNo)}
+                        >
+                          {t('Vrijgeven', 'Release')}
+                        </button>
+                      )}
                     </li>
                   )
                 })}

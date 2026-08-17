@@ -160,7 +160,7 @@ try {
   })
 
   await test('naam op een eigen plek aanpassen', async () => {
-    let r = await jsonReq(base, '/api/seats/rename', {
+    let r = await jsonReq(base, '/api/seats/update', {
       method: 'POST',
       body: { orderId: duoId, seatId: 'r0c13', nickname: 'Vriendje' },
     })
@@ -170,17 +170,116 @@ try {
     const plek = r.data.seats.find((s) => s.seatId === 'r0c13')
     assertEq(plek.nickname, 'Vriendje', 'nieuwe naam op de kaart')
 
-    r = await jsonReq(base, '/api/seats/rename', {
+    r = await jsonReq(base, '/api/seats/update', {
       method: 'POST',
       body: { orderId: duoId, seatId: 'r0c9', nickname: 'Kaper' },
     })
     assertEq(r.status, 403, 'plek van een ander niet omdopen')
 
-    r = await jsonReq(base, '/api/seats/rename', {
+    r = await jsonReq(base, '/api/seats/update', {
       method: 'POST',
       body: { orderId: duoId, seatId: 'r0c13', nickname: 'X' },
     })
     assertEq(r.status, 400, 'te korte naam geweigerd')
+  })
+
+  await test('plek koppelen aan het e-mailadres van wie er zit', async () => {
+    let r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'Vriendje', email: 'Vriend@Test.nl' },
+    })
+    assertEq(r.status, 200, 'adres gekoppeld')
+    assertEq(r.data.invited, true, 'inloglink verstuurd')
+
+    // De gekoppelde bezoeker ziet de plek op zijn eigen profiel...
+    const vriend = await sessionCookie('vriend@test.nl')
+    r = await jsonReq(base, '/api/me', { cookie: vriend })
+    assert(r.data.seats.some((s) => s.seatId === 'r0c13'), 'plek op profiel van de vriend')
+
+    // ...en past daar zonder order-id zijn eigen naam aan.
+    r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      cookie: vriend,
+      body: { seatId: 'r0c13', nickname: 'Electrovriend' },
+    })
+    assertEq(r.status, 200, 'gekoppelde bezoeker mag zijn naam zetten')
+
+    // Maar hij verzet de koppeling niet naar een vreemde.
+    r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      cookie: vriend,
+      body: { seatId: 'r0c13', nickname: 'Electrovriend', email: 'vreemde@test.nl' },
+    })
+    assertEq(r.status, 200, 'verzoek geaccepteerd')
+    assertEq(r.data.invited, false, 'maar geen nieuwe uitnodiging')
+    r = await jsonReq(base, '/api/admin/overview', { cookie: await sessionCookie('koper@test.nl') })
+
+    // Wie niets met de plek te maken heeft komt er niet bij.
+    r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      cookie: await sessionCookie('vreemde@test.nl'),
+      body: { seatId: 'r0c13', nickname: 'Kaper' },
+    })
+    assertEq(r.status, 403, 'vreemde geweigerd')
+
+    // De koper kan de koppeling ook weer weghalen.
+    r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'Vriendje', email: '' },
+    })
+    assertEq(r.status, 200, 'koppeling weg')
+    r = await jsonReq(base, '/api/me', { cookie: vriend })
+    assert(!r.data.seats.some((s) => s.seatId === 'r0c13'), 'plek weg van dat profiel')
+  })
+
+  await test('gedeelde order-link: wie zelf claimt komt op eigen naam te staan', async () => {
+    const trio = await koop([{ productId: 'ticket-weekend-2026', qty: 2 }], 'trio@test.nl', ['Trio', 'Koper'])
+    const trioId = orderIdVan(trio)
+    d1(persist, "UPDATE users SET role = 'admin' WHERE email = 'duo@test.nl'")
+
+    // De koper claimt zijn eigen plek: geen koppeling nodig.
+    let r = await jsonReq(base, '/api/seats/claim', {
+      method: 'POST',
+      cookie: await sessionCookie('trio@test.nl'),
+      body: { orderId: trioId, seatId: 'r0c14', nickname: 'Trio-koper' },
+    })
+    assertEq(r.status, 200, 'koper claimt zelf')
+
+    // De vriend opent de doorgestuurde link, logt in als zichzelf en claimt.
+    r = await jsonReq(base, '/api/seats/claim', {
+      method: 'POST',
+      cookie: await sessionCookie('meegekomen@test.nl'),
+      body: { orderId: trioId, seatId: 'r0c15', nickname: 'Meegekomen' },
+    })
+    assertEq(r.status, 200, 'vriend claimt via de link')
+    assertEq(r.data.invited, false, 'geen uitnodiging nodig')
+
+    r = await jsonReq(base, '/api/me', { cookie: await sessionCookie('meegekomen@test.nl') })
+    assert(r.data.seats.some((s) => s.seatId === 'r0c15'), 'plek staat op zijn eigen profiel')
+
+    r = await jsonReq(base, '/api/admin/overview', { cookie: await sessionCookie('duo@test.nl') })
+    const zelf = r.data.seats.find((s) => s.seatId === 'r0c15')
+    assertEq(zelf.email, 'meegekomen@test.nl', 'Backstage kent de echte persoon')
+    const koperPlek = r.data.seats.find((s) => s.seatId === 'r0c14')
+    assertEq(koperPlek.buyerEmail, null, 'plek van de koper blijft ongekoppeld')
+  })
+
+  await test('Backstage laat per plek de persoon zien, niet alleen de koper', async () => {
+    let r = await jsonReq(base, '/api/seats/update', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'Vriendje', email: 'vriend@test.nl' },
+    })
+    assertEq(r.status, 200, 'weer gekoppeld')
+
+    d1(persist, "UPDATE users SET role = 'admin' WHERE email = 'duo@test.nl'")
+    r = await jsonReq(base, '/api/admin/overview', { cookie: await sessionCookie('duo@test.nl') })
+    assertEq(r.status, 200, 'overzicht open voor admin')
+    const gekoppeld = r.data.seats.find((s) => s.seatId === 'r0c13')
+    assertEq(gekoppeld.email, 'vriend@test.nl', 'persoon op de plek')
+    assertEq(gekoppeld.buyerEmail, 'duo@test.nl', 'koper er los bij')
+    const eigen = r.data.seats.find((s) => s.seatId === 'r0c12')
+    assertEq(eigen.email, 'duo@test.nl', 'ongekoppelde plek blijft de koper')
+    assertEq(eigen.buyerEmail, null, 'zonder koperregel')
   })
 
   await test('huur-PC-pool: 2 machines per dag', async () => {

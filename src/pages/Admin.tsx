@@ -294,7 +294,7 @@ export default function Admin() {
               <tr className="font-label text-[11px] uppercase tracking-widest text-smoke/60">
                 <th className="px-3 py-2">{t('Plek', 'Seat')}</th>
                 <th className="px-3 py-2">Nickname</th>
-                <th className="px-3 py-2">{t('Koper', 'Buyer')}</th>
+                <th className="px-3 py-2">{t('Wie zit hier', 'Who sits here')}</th>
                 <th className="px-3 py-2">{t('Actie', 'Action')}</th>
               </tr>
             </thead>
@@ -309,6 +309,11 @@ export default function Admin() {
                     {s.assigned ? (
                       <span className="ml-2 font-label text-[10px] uppercase tracking-widest text-bulb">
                         {t('toegewezen', 'assigned')}
+                      </span>
+                    ) : null}
+                    {s.buyerEmail && s.buyerEmail !== s.email ? (
+                      <span className="ml-2 text-xs text-smoke/50">
+                        {t('gekocht door', 'bought by')} {s.buyerEmail}
                       </span>
                     ) : null}
                   </td>

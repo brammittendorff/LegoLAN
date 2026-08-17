@@ -37,8 +37,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const seats = await env.DB.prepare(
     `SELECT s.seat_id AS seatId, s.nickname,
-            COALESCE(o.name, trim(coalesce(u.first_name, '') || ' ' || coalesce(u.last_name, ''))) AS name,
-            COALESCE(o.email, s.owner_email) AS email,
+            -- Is de plek aan een adres gekoppeld, dan is dat de persoon op die
+            -- plek; anders de koper van de bestelling.
+            CASE WHEN s.owner_email IS NOT NULL
+                 THEN NULLIF(trim(coalesce(u.first_name, '') || ' ' || coalesce(u.last_name, '')), '')
+                 ELSE o.name END AS name,
+            COALESCE(s.owner_email, o.email) AS email,
+            CASE WHEN s.owner_email IS NOT NULL THEN o.email END AS buyerEmail,
             s.order_id IS NULL AS assigned
        FROM seats s
        LEFT JOIN orders o ON o.id = s.order_id

@@ -22,7 +22,15 @@ export type AdminOverview = {
     items: string | null
   }[]
   stats: { productId: string; sold: number; revenueCents: number }[]
-  seats: { seatId: string; nickname: string; name: string; email: string; assigned: number }[]
+  seats: {
+    seatId: string
+    nickname: string
+    name: string | null
+    email: string
+    /** Gevuld als de plek aan iemand anders dan de koper is gekoppeld */
+    buyerEmail: string | null
+    assigned: number
+  }[]
   polos: {
     itemId: number
     name: string
@@ -45,6 +53,9 @@ export type AdminStats = {
   totals: { paidOrders: number; revenueCents: number; seatsClaimed: number; accounts: number }
 }
 
+/** Een geclaimde plek; `ownerEmail` is gezet als de plek aan iemand anders dan de koper hangt. */
+export type SeatClaim = { seatId: string; nickname: string; ownerEmail: string | null }
+
 export type OrderStatus = 'pending' | 'paid' | 'failed' | 'canceled' | 'expired' | 'refunded'
 
 export type OrderInfo = {
@@ -53,7 +64,7 @@ export type OrderInfo = {
   items: { name: L10n; qty: number; size?: string; customName?: string }[]
   /** Aantal te claimen plekken (alleen bij betaalde orders) */
   seatQuota: number
-  seatsClaimed: { seatId: string; nickname: string }[]
+  seatsClaimed: SeatClaim[]
 }
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
@@ -87,20 +98,21 @@ export const api = {
   order: (id: string) => req<OrderInfo>(`/api/order/${encodeURIComponent(id)}`),
 
   myOrders: () =>
-    req<{
-      orders: { id: string; seatQuota: number; seatsClaimed: { seatId: string; nickname: string }[] }[]
-    }>('/api/my/orders'),
+    req<{ orders: { id: string; seatQuota: number; seatsClaimed: SeatClaim[] }[] }>(
+      '/api/my/orders',
+    ),
 
   seats: () => req<{ seats: { seatId: string; nickname: string }[] }>('/api/seats'),
 
-  claimSeat: (payload: { orderId: string; seatId: string; nickname: string }) =>
-    post<{ ok: true }>('/api/seats/claim', payload),
+  claimSeat: (payload: { orderId: string; seatId: string; nickname: string; email?: string }) =>
+    post<{ ok: true; invited: boolean }>('/api/seats/claim', payload),
 
   releaseSeat: (payload: { orderId: string; seatId: string }) =>
     post<{ ok: true }>('/api/seats/release', payload),
 
-  renameSeat: (payload: { orderId: string; seatId: string; nickname: string }) =>
-    post<{ ok: true }>('/api/seats/rename', payload),
+  /** Naam op een plek wijzigen; `email` (alleen de koper) koppelt de plek aan wie er zit. */
+  updateSeat: (payload: { orderId?: string; seatId: string; nickname: string; email?: string }) =>
+    post<{ ok: true; invited: boolean }>('/api/seats/update', payload),
 
   subscribe: (payload: { email: string; turnstileToken: string }) =>
     post<{ ok: true }>('/api/subscribe', payload),

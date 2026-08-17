@@ -48,10 +48,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
 
   const items = await getOrderItems(env, orderId)
   const seatsClaimed = await env.DB.prepare(
-    `SELECT seat_id AS seatId, nickname FROM seats WHERE order_id = ?`,
+    `SELECT seat_id AS seatId, nickname, owner_email AS ownerEmail FROM seats WHERE order_id = ?`,
   )
     .bind(orderId)
-    .all<{ seatId: string; nickname: string }>()
+    .all<{ seatId: string; nickname: string; ownerEmail: string | null }>()
 
   return json({
     status: order.status,
