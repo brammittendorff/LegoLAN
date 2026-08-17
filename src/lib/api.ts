@@ -99,6 +99,9 @@ export const api = {
   releaseSeat: (payload: { orderId: string; seatId: string }) =>
     post<{ ok: true }>('/api/seats/release', payload),
 
+  renameSeat: (payload: { orderId: string; seatId: string; nickname: string }) =>
+    post<{ ok: true }>('/api/seats/rename', payload),
+
   subscribe: (payload: { email: string; turnstileToken: string }) =>
     post<{ ok: true }>('/api/subscribe', payload),
 

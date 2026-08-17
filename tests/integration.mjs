@@ -129,6 +129,60 @@ try {
     assertEq(r.status, 200, 'herclaim op andere plek')
   })
 
+  let duoId = ''
+  await test('twee tickets: twee plekken kiezen, elk met eigen naam', async () => {
+    const duo = await koop([{ productId: 'ticket-weekend-2026', qty: 2 }], 'duo@test.nl', ['Duo', 'Boeker'])
+    duoId = orderIdVan(duo)
+    const order = await jsonReq(base, `/api/order/${duoId}`)
+    assertEq(order.data.seatQuota, 2, 'twee plekken te claimen')
+
+    let r = await jsonReq(base, '/api/seats/claim', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c12', nickname: 'Duo-een' },
+    })
+    assertEq(r.status, 200, 'eerste plek')
+    r = await jsonReq(base, '/api/seats/claim', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'Duo-twee' },
+    })
+    assertEq(r.status, 200, 'tweede plek uit dezelfde bestelling')
+    r = await jsonReq(base, '/api/seats/claim', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c14', nickname: 'Duo-drie' },
+    })
+    assertEq(r.status, 403, 'derde plek buiten quotum')
+
+    r = await jsonReq(base, '/api/my/orders', { cookie: await sessionCookie('duo@test.nl') })
+    const duoOrder = r.data.orders.find((o) => o.id === duoId)
+    assertEq(duoOrder.seatQuota, 2, 'quotum in /my/orders')
+    const namen = duoOrder.seatsClaimed.map((s) => s.nickname).sort()
+    assertEq(namen.join(','), 'Duo-een,Duo-twee', 'per plek een eigen naam')
+  })
+
+  await test('naam op een eigen plek aanpassen', async () => {
+    let r = await jsonReq(base, '/api/seats/rename', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'Vriendje' },
+    })
+    assertEq(r.status, 200, 'eigen plek omgedoopt')
+
+    r = await jsonReq(base, '/api/seats', { cookie: await sessionCookie('duo@test.nl') })
+    const plek = r.data.seats.find((s) => s.seatId === 'r0c13')
+    assertEq(plek.nickname, 'Vriendje', 'nieuwe naam op de kaart')
+
+    r = await jsonReq(base, '/api/seats/rename', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c9', nickname: 'Kaper' },
+    })
+    assertEq(r.status, 403, 'plek van een ander niet omdopen')
+
+    r = await jsonReq(base, '/api/seats/rename', {
+      method: 'POST',
+      body: { orderId: duoId, seatId: 'r0c13', nickname: 'X' },
+    })
+    assertEq(r.status, 400, 'te korte naam geweigerd')
+  })
+
   await test('huur-PC-pool: 2 machines per dag', async () => {
     // Test 5 bezette al 1 PC op za; dit weekendpakket maakt za vol (2/2).
     let r = await koop([{ productId: 'computerhuur-2026', size: 'vr+za+zo', qty: 1 }], 'huur@test.nl', ['Huur', 'Alles'])

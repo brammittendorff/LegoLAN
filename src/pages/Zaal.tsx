@@ -38,6 +38,8 @@ export default function Zaal() {
       return ''
     }
   })
+  // Naam-in-bewerking per geclaimde plek (leeg = zoals hij in de database staat)
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({})
   const [busySeat, setBusySeat] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const { user, loading: authLoading, refresh } = useAuth()
@@ -90,6 +92,24 @@ export default function Zaal() {
   const canClaim = remaining > 0
   const seatOwner = new Map(orders.flatMap((o) => o.seatsClaimed.map((s) => [s.seatId, o.id])))
 
+  const seatNos = useMemo(
+    () => new Map(room.flat().flatMap((c) => (c.seatId ? [[c.seatId, c.seatNo ?? 0]] : []))),
+    [room],
+  )
+
+  // Jouw eigen plekken, met de naam die erop staat: per plek aanpasbaar,
+  // want wie voor twee mensen bestelt heeft twee namen nodig.
+  const mySeats = orders
+    .flatMap((o) =>
+      o.seatsClaimed.map((s) => ({
+        orderId: o.id,
+        seatId: s.seatId,
+        nickname: s.nickname,
+        seatNo: seatNos.get(s.seatId) ?? 0,
+      })),
+    )
+    .sort((a, b) => a.seatNo - b.seatNo)
+
   const claim = async (cell: Cell) => {
     const target = orders.find((o) => o.seatsClaimed.length < o.seatQuota)
     if (!target || !cell.seatId) return
@@ -97,8 +117,8 @@ export default function Zaal() {
     if (!nick) {
       setNotice(
         t(
-          'Vul eerst je (gamer)naam in - anders weet niemand naast wie ze zitten.',
-          'Fill in your (gamer) name first - otherwise nobody knows who they are sitting next to.',
+          'Vul eerst de (gamer)naam in voor deze plek - anders weet niemand naast wie ze zitten.',
+          'Fill in the (gamer) name for this seat first - otherwise nobody knows who they are sitting next to.',
         ),
       )
       return
@@ -106,20 +126,33 @@ export default function Zaal() {
     setBusySeat(cell.seatId)
     setNotice('')
     try {
-      localStorage.setItem('legolan-nick', nick)
+      // Alleen de eerste keer onthouden: anders overschrijft de naam van een
+      // vriend voor wie je claimt jouw eigen naam.
+      if (!localStorage.getItem('legolan-nick')) localStorage.setItem('legolan-nick', nick)
     } catch {
       /* jammer dan */
     }
+    const meer = remaining > 1
     try {
       await api.claimSeat({ orderId: target.id, seatId: cell.seatId, nickname: nick })
       await Promise.all([refreshSeats(), loadOrders()])
       void refresh() // profiel bijwerken zodat /account de plek meteen toont
-      setNotice(
-        t(
-          `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
-          `Seat ${cell.seatNo} is yours. Bring on that weekend.`,
-        ),
-      )
+      if (meer) {
+        setNickname('') // volgende plek is vaak voor iemand anders
+        setNotice(
+          t(
+            `Plek ${cell.seatNo} staat op naam van ${nick}. Vul nu de naam voor de volgende plek in.`,
+            `Seat ${cell.seatNo} is in the name of ${nick}. Now fill in the name for the next seat.`,
+          ),
+        )
+      } else {
+        setNotice(
+          t(
+            `Plek ${cell.seatNo} is van jou. Kom maar op met dat weekend.`,
+            `Seat ${cell.seatNo} is yours. Bring on that weekend.`,
+          ),
+        )
+      }
     } catch (err) {
       setNotice(err instanceof Error ? err.message : t('Claimen mislukte.', 'Claiming failed.'))
       await refreshSeats().catch(() => undefined)
@@ -128,29 +161,58 @@ export default function Zaal() {
     }
   }
 
-  const release = async (cell: Cell) => {
-    const ownerOrderId = cell.seatId ? seatOwner.get(cell.seatId) : undefined
-    if (!ownerOrderId || !cell.seatId) return
+  const rename = async (seat: { orderId: string; seatId: string; nickname: string; seatNo: number }) => {
+    const nick = (nameDrafts[seat.seatId] ?? seat.nickname).trim()
+    if (nick.length < 2) {
+      setNotice(
+        t('Kies een naam van minstens 2 tekens.', 'Pick a name of at least 2 characters.'),
+      )
+      return
+    }
+    setBusySeat(seat.seatId)
+    setNotice('')
+    try {
+      await api.renameSeat({ orderId: seat.orderId, seatId: seat.seatId, nickname: nick })
+      setNameDrafts(({ [seat.seatId]: _weg, ...rest }) => rest)
+      await Promise.all([refreshSeats(), loadOrders()])
+      void refresh()
+      setNotice(
+        t(
+          `Plek ${seat.seatNo} staat nu op naam van ${nick}.`,
+          `Seat ${seat.seatNo} is now in the name of ${nick}.`,
+        ),
+      )
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : t('Naam opslaan mislukte.', 'Saving the name failed.'))
+    } finally {
+      setBusySeat(null)
+    }
+  }
+
+  const release = async (seatId: string, seatNo: number) => {
+    const ownerOrderId = seatOwner.get(seatId)
+    if (!ownerOrderId) return
     if (
       !window.confirm(
         t(
-          `Plek ${cell.seatNo} vrijgeven? Je kunt daarna een andere plek kiezen.`,
-          `Release seat ${cell.seatNo}? You can pick a different seat afterwards.`,
+          `Plek ${seatNo} vrijgeven? Je kunt daarna een andere plek kiezen.`,
+          `Release seat ${seatNo}? You can pick a different seat afterwards.`,
         ),
       )
     ) {
       return
     }
-    setBusySeat(cell.seatId)
+    setBusySeat(seatId)
     setNotice('')
     try {
-      await api.releaseSeat({ orderId: ownerOrderId, seatId: cell.seatId })
+      await api.releaseSeat({ orderId: ownerOrderId, seatId })
+      setNameDrafts(({ [seatId]: _weg, ...rest }) => rest)
       await Promise.all([refreshSeats(), loadOrders()])
       void refresh()
       setNotice(
         t(
-          `Plek ${cell.seatNo} is weer vrij. Kies een nieuwe plek.`,
-          `Seat ${cell.seatNo} is free again. Pick a new seat.`,
+          `Plek ${seatNo} is weer vrij. Kies een nieuwe plek.`,
+          `Seat ${seatNo} is free again. Pick a new seat.`,
         ),
       )
     } catch (err) {
@@ -185,7 +247,9 @@ export default function Zaal() {
         <button
           key={key}
           type="button"
-          onClick={() => void release(cell)}
+          onClick={() => {
+            if (cell.seatId) void release(cell.seatId, cell.seatNo ?? 0)
+          }}
           title={t(
             `Jouw plek (${taken}) - klik om vrij te geven`,
             `Your seat (${taken}) - click to release`,
@@ -270,17 +334,89 @@ export default function Zaal() {
                 {remaining === 1
                   ? t('Je hebt nog 1 plek te claimen.', 'You have 1 seat left to claim.')
                   : t(`Je hebt nog ${remaining} plekken te claimen.`, `You have ${remaining} seats left to claim.`)}{' '}
-                {t('Vul je naam in en klik op een vrije plek.', 'Fill in your name and click a free seat.')}
+                {remaining === 1
+                  ? t(
+                      'Vul de naam in en klik op een vrije plek.',
+                      'Fill in the name and click a free seat.',
+                    )
+                  : t(
+                      'Elke plek krijgt zijn eigen naam: vul de naam in voor de plek die je nu kiest, en daarna die voor de volgende.',
+                      'Every seat gets its own name: fill in the name for the seat you pick now, then the one for the next.',
+                    )}
               </p>
               <input
                 className="input mx-auto mt-4 max-w-xs text-center"
-                placeholder={t('Je (gamer)naam', 'Your (gamer) name')}
+                placeholder={
+                  mySeats.length > 0
+                    ? t('Naam voor de volgende plek', 'Name for the next seat')
+                    : t('Je (gamer)naam', 'Your (gamer) name')
+                }
                 maxLength={20}
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                aria-label={t('Gamernaam voor op de plattegrond', 'Gamer name shown on the floor plan')}
+                aria-label={t(
+                  'Gamernaam voor de plek die je nu kiest',
+                  'Gamer name for the seat you pick now',
+                )}
               />
             </div>
+          )}
+
+          {mySeats.length > 0 && (
+            <section className="neon-box mx-auto mt-8 max-w-xl bg-velvet/70 p-6">
+              <h2 className="text-center font-label text-xs uppercase tracking-[0.25em] text-bulb">
+                {t('Jouw plekken', 'Your seats')}
+              </h2>
+              <p className="mt-2 text-center text-sm text-smoke/80">
+                {t(
+                  'Zet per plek de naam van wie er zit. Verkeerde naam ingevuld? Pas hem hier aan.',
+                  'Put the name of whoever sits there on each seat. Wrong name? Change it here.',
+                )}
+              </p>
+              <ul className="mt-4 space-y-2">
+                {mySeats.map((seat) => {
+                  const draft = nameDrafts[seat.seatId] ?? seat.nickname
+                  const changed = draft.trim() !== seat.nickname
+                  return (
+                    <li key={seat.seatId} className="flex flex-wrap items-center gap-2">
+                      <span className="w-9 shrink-0 text-right font-label text-xs text-bulb">
+                        #{seat.seatNo}
+                      </span>
+                      <input
+                        className="input min-w-0 flex-1"
+                        maxLength={20}
+                        value={draft}
+                        onChange={(e) =>
+                          setNameDrafts((d) => ({ ...d, [seat.seatId]: e.target.value }))
+                        }
+                        aria-label={t(
+                          `Naam op plek ${seat.seatNo}`,
+                          `Name on seat ${seat.seatNo}`,
+                        )}
+                      />
+                      <button
+                        type="button"
+                        className="btn-neon !px-4 !py-1.5 text-xs"
+                        disabled={!changed || busySeat !== null}
+                        onClick={() => void rename(seat)}
+                      >
+                        {busySeat === seat.seatId
+                          ? t('Momentje...', 'One moment...')
+                          : t('Naam opslaan', 'Save name')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost !px-4 !py-1.5 text-xs"
+                        disabled={busySeat !== null}
+                        onClick={() => void release(seat.seatId, seat.seatNo)}
+                      >
+                        {t('Vrijgeven', 'Release')}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
           )}
 
           {!canClaim && mySeatCount > 0 && (
