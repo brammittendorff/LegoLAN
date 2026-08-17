@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { buildRoom, type Cell } from '../../shared/seatmap'
 import { api } from '../lib/api'
@@ -44,11 +44,13 @@ export default function Zaal() {
   const [notice, setNotice] = useState('')
   const { user, loading: authLoading, refresh } = useAuth()
 
-  // Ingelogd? Dan vullen we je nickname alvast in.
+  // Ingelogd? Dan vullen we je nickname alvast in, maar alleen zolang je zelf
+  // niets hebt getypt of geclaimd: /api/me leidt je nickname ook af uit een
+  // geclaimde plek, en die naam hoort niet in het veld voor de volgende plek.
+  const nickTouched = useRef(false)
   useEffect(() => {
-    if (user?.nickname) {
-      setNickname((prev) => prev || user.nickname)
-    }
+    if (nickTouched.current || !user?.nickname) return
+    setNickname((prev) => prev || user.nickname)
   }, [user])
 
   const refreshSeats = useCallback(async () => {
@@ -123,6 +125,7 @@ export default function Zaal() {
       )
       return
     }
+    nickTouched.current = true
     setBusySeat(cell.seatId)
     setNotice('')
     try {
@@ -353,7 +356,10 @@ export default function Zaal() {
                 }
                 maxLength={20}
                 value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
+                onChange={(e) => {
+                  nickTouched.current = true
+                  setNickname(e.target.value)
+                }}
                 aria-label={t(
                   'Gamernaam voor de plek die je nu kiest',
                   'Gamer name for the seat you pick now',
