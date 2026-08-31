@@ -18,10 +18,23 @@ export const EDITION_YEAR = 2026
  */
 export const CAPACITY_POOLS: Record<string, number> = {
   computerhuur: 2, // 2 huur-PC's per dag
-  // Alle tickets delen dezelfde stoelen: weekend- en daggasten zitten door
-  // elkaar. Per eventdag passen er precies zoveel mensen als de plattegrond
-  // plekken heeft, dus die telt hier mee in plaats van een los getal.
-  zaal: allSeatIds().size,
+}
+
+/**
+ * Zoveel mensen passen er in de zaal. Elke bezoeker claimt één plek op de
+ * plattegrond voor de hele editie, ook een daggast: die stoel staat er ook op
+ * de dagen dat hij er niet is. Weekend- en dagtickets komen dus uit deze ene
+ * pot, en niet per dag.
+ */
+export const SEATS_TOTAL = allSeatIds().size
+
+/** Hoeveel plekken de verkochte tickets al opeisen (uit soldCounts). */
+export function seatsFromSold(sold: Record<string, number>): number {
+  let n = 0
+  for (const product of PRODUCTS) {
+    if (product.type === 'ticket') n += (product.seatsPerUnit ?? 1) * (sold[product.id] ?? 0)
+  }
+  return n
 }
 
 /** De dagen van het event (vr 9, za 10, zo 11 oktober). */
@@ -46,9 +59,7 @@ export function bookedDaysFor(
   product: Product,
   size: string | null | undefined,
 ): readonly EventDay[] | null {
-  if (product.perDay) return parseDays(size)
-  // Een weekendticket houdt zijn stoel het hele event bezet.
-  return product.pool ? EVENT_DAYS : null
+  return product.perDay ? parseDays(size) : null
 }
 
 /** Regelprijs: per-dag-producten kosten priceCents keer het aantal dagen. */
@@ -88,7 +99,6 @@ export const PRODUCTS: readonly Product[] = [
     priceCents: 2500,
     type: 'ticket',
     capacity: null,
-    pool: 'zaal',
     seatsPerUnit: 1,
   },
   {
@@ -101,7 +111,6 @@ export const PRODUCTS: readonly Product[] = [
     priceCents: 1000, // per dag
     type: 'ticket',
     capacity: null,
-    pool: 'zaal',
     perDay: true,
     seatsPerUnit: 1,
   },

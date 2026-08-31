@@ -85,7 +85,12 @@ const post = <T,>(url: string, body: unknown) =>
   })
 
 export const api = {
-  stock: () => req<{ stock: Record<string, number | null> }>('/api/stock'),
+  stock: () =>
+    req<{
+      stock: Record<string, number | null>
+      /** Beschikbaar per eventdag, voor producten die je per dag boekt */
+      perDay: Record<string, Record<string, number>>
+    }>('/api/stock'),
 
   checkout: (payload: {
     firstName: string

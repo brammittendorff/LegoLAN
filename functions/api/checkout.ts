@@ -5,6 +5,8 @@ import {
   EDITION_YEAR,
   getProduct,
   parseDays,
+  SEATS_TOTAL,
+  seatsFromSold,
 } from '../../shared/products'
 import { err, json } from '../../server/http'
 import { createMolliePayment } from '../../server/mollie'
@@ -106,8 +108,33 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  // Per eventdag tellen: de huur-PC's (2 machines) en de zaal zelf, want een
-  // weekendkaart bezet zijn stoel alle dagen en een dagkaart alleen de gekozen.
+  // De zaal: elk ticket kost één plek op de plattegrond voor de hele editie,
+  // of je nu het weekend blijft of één dag langskomt. Losse toewijzingen van de
+  // admin bezetten dezelfde stoelen, dus die tellen mee.
+  let wantedSeats = 0
+  for (const [productId, qty] of wanted) {
+    const product = getProduct(productId)!
+    if (product.type === 'ticket') wantedSeats += (product.seatsPerUnit ?? 1) * qty
+  }
+  if (wantedSeats > 0) {
+    const losseplekken = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM seats WHERE edition = ? AND order_id IS NULL`,
+    )
+      .bind(EDITION_YEAR)
+      .first<{ n: number }>()
+    const bezet = seatsFromSold(sold) + (losseplekken?.n ?? 0)
+    if (bezet + wantedSeats > SEATS_TOTAL) {
+      const over = Math.max(0, SEATS_TOTAL - bezet)
+      return err(
+        over === 0
+          ? 'De zaal is vol. Mail ons als je er per se bij wilt zijn.'
+          : `Er ${over === 1 ? 'is' : 'zijn'} nog maar ${over} plek${over === 1 ? '' : 'ken'} vrij in de zaal.`,
+        409,
+      )
+    }
+  }
+
+  // Huur-PC's: 2 machines, geboekt per dag. Check per eventdag.
   const wantedPerDay = new Map<string, number>()
   for (const line of lines) {
     const product = getProduct(line.productId)!
@@ -122,7 +149,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (wantedPerDay.size > 0) {
     const POOL_FULL: Record<string, (day: string) => string> = {
       computerhuur: (day) => `Alle huur-PC's zijn al geboekt op ${day}. Kies een andere dag.`,
-      zaal: (day) => `De zaal is vol op ${day}. Kies een andere dag of mail ons.`,
     }
     const booked = await bookedPerPoolDay(env)
     for (const [key, qty] of wantedPerDay) {

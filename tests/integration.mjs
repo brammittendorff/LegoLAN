@@ -82,6 +82,8 @@ try {
 
   await test('zaal is één pot: weekend- en dagtickets delen dezelfde plekken', async () => {
     const voor = (await jsonReq(base, '/api/stock')).data.stock
+    assertEq(voor['ticket-dag-2026'], voor['ticket-weekend-2026'], 'beide tickets, zelfde zaal')
+
     const r = await koop([{ productId: 'ticket-dag-2026', size: 'za', qty: 1 }], 'zaterdag@test.nl', ['Zater', 'Dag'])
     assertEq(r.status, 200, 'dagkaart gekocht')
 
@@ -91,7 +93,19 @@ try {
       voor['ticket-weekend-2026'] - 1,
       'een dagkaart kost ook een weekendplek',
     )
-    assertEq(na['ticket-dag-2026'], voor['ticket-dag-2026'], 'rustigste dag blijft even ruim')
+    assertEq(na['ticket-dag-2026'], na['ticket-weekend-2026'], 'en beide tellers blijven gelijk')
+  })
+
+  await test('handmatig toegewezen plek gaat ook van de voorraad af', async () => {
+    const voor = (await jsonReq(base, '/api/stock')).data.stock
+    // Zo'n plek hangt aan een e-mailadres in plaats van aan een bestelling
+    // (Backstage doet dit via /api/admin/seat, hier rechtstreeks).
+    d1(
+      persist,
+      "INSERT INTO seats (edition, seat_id, owner_email, nickname, claimed_at) VALUES (2026, 'r7c16', 'erebij@test.nl', 'Erebij', 0)",
+    )
+    const na = (await jsonReq(base, '/api/stock')).data.stock
+    assertEq(na['ticket-weekend-2026'], voor['ticket-weekend-2026'] - 1, 'stoel is weg uit de shop')
   })
 
   await test('plattegrond is dicht zonder login', async () => {
