@@ -10,11 +10,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
 
   const stock: Record<string, number | null> = {}
   for (const product of PRODUCTS) {
-    if (product.pool && product.perDay) {
-      // Gunstigste dag telt voor de "nog X beschikbaar"-badge.
+    if (product.pool) {
       const cap = CAPACITY_POOLS[product.pool] ?? 0
-      const best = Math.max(...EVENT_DAYS.map((d) => cap - (booked[`${product.pool}:${d}`] ?? 0)))
-      stock[product.id] = Math.max(0, best)
+      const vrijPerDag = EVENT_DAYS.map((d) => cap - (booked[`${product.pool}:${d}`] ?? 0))
+      // Een dagkaart hoeft maar op één dag te passen (gunstigste dag telt),
+      // een weekendkaart op alle drie (krapste dag telt).
+      stock[product.id] = Math.max(
+        0,
+        product.perDay ? Math.max(...vrijPerDag) : Math.min(...vrijPerDag),
+      )
     } else {
       stock[product.id] =
         product.capacity === null ? null : Math.max(0, product.capacity - (sold[product.id] ?? 0))

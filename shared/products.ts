@@ -3,10 +3,11 @@
  * Prijzen staan in centen; de server rekent hiermee, dus knoeien in de browser
  * heeft geen zin.
  *
- * Jaarlijks bijwerken: namen, prijzen en capaciteit. Capaciteit van tickets
- * hoort samen op te tellen tot het aantal LAN-plekken in shared/seatmap.ts.
+ * Jaarlijks bijwerken: namen, prijzen en capaciteit. Tickets delen automatisch
+ * de plekken uit shared/seatmap.ts, dus daar hoef je niets bij te rekenen.
  */
 import type { L10n } from './l10n'
+import { allSeatIds } from './seatmap'
 
 /** Het jaar van de huidige editie; betaalde tickets geven fototoegang voor dit jaar. */
 export const EDITION_YEAR = 2026
@@ -17,7 +18,10 @@ export const EDITION_YEAR = 2026
  */
 export const CAPACITY_POOLS: Record<string, number> = {
   computerhuur: 2, // 2 huur-PC's per dag
-  dagticket: 40, // zaalcapaciteit per dag; praktisch onbeperkt
+  // Alle tickets delen dezelfde stoelen: weekend- en daggasten zitten door
+  // elkaar. Per eventdag passen er precies zoveel mensen als de plattegrond
+  // plekken heeft, dus die telt hier mee in plaats van een los getal.
+  zaal: allSeatIds().size,
 }
 
 /** De dagen van het event (vr 9, za 10, zo 11 oktober). */
@@ -42,7 +46,9 @@ export function bookedDaysFor(
   product: Product,
   size: string | null | undefined,
 ): readonly EventDay[] | null {
-  return product.perDay ? parseDays(size) : null
+  if (product.perDay) return parseDays(size)
+  // Een weekendticket houdt zijn stoel het hele event bezet.
+  return product.pool ? EVENT_DAYS : null
 }
 
 /** Regelprijs: per-dag-producten kosten priceCents keer het aantal dagen. */
@@ -81,7 +87,8 @@ export const PRODUCTS: readonly Product[] = [
     },
     priceCents: 2500,
     type: 'ticket',
-    capacity: 34, // de plattegrond heeft 40 plekken; 6 marge voor daggasten
+    capacity: null,
+    pool: 'zaal',
     seatsPerUnit: 1,
   },
   {
@@ -94,7 +101,7 @@ export const PRODUCTS: readonly Product[] = [
     priceCents: 1000, // per dag
     type: 'ticket',
     capacity: null,
-    pool: 'dagticket',
+    pool: 'zaal',
     perDay: true,
     seatsPerUnit: 1,
   },

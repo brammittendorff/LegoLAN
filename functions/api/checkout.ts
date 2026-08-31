@@ -106,7 +106,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
   }
 
-  // Huur-PC's: 2 machines, geboekt per dag. Check per eventdag.
+  // Per eventdag tellen: de huur-PC's (2 machines) en de zaal zelf, want een
+  // weekendkaart bezet zijn stoel alle dagen en een dagkaart alleen de gekozen.
   const wantedPerDay = new Map<string, number>()
   for (const line of lines) {
     const product = getProduct(line.productId)!
@@ -121,7 +122,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (wantedPerDay.size > 0) {
     const POOL_FULL: Record<string, (day: string) => string> = {
       computerhuur: (day) => `Alle huur-PC's zijn al geboekt op ${day}. Kies een andere dag.`,
-      dagticket: (day) => `De dagtickets voor ${day} zijn uitverkocht. Kies een andere dag.`,
+      zaal: (day) => `De zaal is vol op ${day}. Kies een andere dag of mail ons.`,
     }
     const booked = await bookedPerPoolDay(env)
     for (const [key, qty] of wantedPerDay) {

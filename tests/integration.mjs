@@ -34,7 +34,7 @@ try {
     for (const id of ['ticket-weekend-2026', 'ticket-dag-2026', 'computerhuur-2026', 'diner-zaterdag-2026', 'polo-2026']) {
       assert(id in data.stock, `${id} ontbreekt in stock`)
     }
-    assertEq(data.stock['ticket-weekend-2026'], 34, 'weekendvoorraad')
+    assertEq(data.stock['ticket-weekend-2026'], 40, 'weekendvoorraad = alle plekken in de zaal')
   })
 
   await test('checkout weigert dagticket zonder dag', async () => {
@@ -78,6 +78,20 @@ try {
     const order = await jsonReq(base, `/api/order/${orderIdVan(r)}`)
     assertEq(order.data.amountCents, 2000, 'bedrag')
     assert(order.data.items[0].size === 'za+zo', 'dagen canoniek geordend')
+  })
+
+  await test('zaal is één pot: weekend- en dagtickets delen dezelfde plekken', async () => {
+    const voor = (await jsonReq(base, '/api/stock')).data.stock
+    const r = await koop([{ productId: 'ticket-dag-2026', size: 'za', qty: 1 }], 'zaterdag@test.nl', ['Zater', 'Dag'])
+    assertEq(r.status, 200, 'dagkaart gekocht')
+
+    const na = (await jsonReq(base, '/api/stock')).data.stock
+    assertEq(
+      na['ticket-weekend-2026'],
+      voor['ticket-weekend-2026'] - 1,
+      'een dagkaart kost ook een weekendplek',
+    )
+    assertEq(na['ticket-dag-2026'], voor['ticket-dag-2026'], 'rustigste dag blijft even ruim')
   })
 
   await test('plattegrond is dicht zonder login', async () => {
