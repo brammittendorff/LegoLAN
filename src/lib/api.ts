@@ -1,4 +1,5 @@
 import type { L10n } from '../../shared/l10n'
+import type { ProductMode } from '../../shared/products'
 
 export type Profile = {
   email: string
@@ -90,8 +91,10 @@ export const api = {
       stock: Record<string, number | null>
       /** Beschikbaar per eventdag, voor producten die je per dag boekt */
       perDay: Record<string, Record<string, number>>
-      /** Product-id's die de admin heeft uitgezet */
+      /** Product-id's die de admin heeft verborgen */
       disabled: string[]
+      /** Product-id's waarvan bestellen gesloten is (staan op voorraad 0) */
+      closed: string[]
     }>('/api/stock'),
 
   checkout: (payload: {
@@ -209,9 +212,9 @@ export const api = {
     }),
 
   adminProducts: () =>
-    req<{ products: { productId: string; enabled: boolean }[] }>('/api/admin/products'),
+    req<{ products: { productId: string; mode: ProductMode }[] }>('/api/admin/products'),
 
-  adminSetProduct: (payload: { productId: string; enabled: boolean }) =>
+  adminSetProduct: (payload: { productId: string; mode: ProductMode }) =>
     req<{ ok: true }>('/api/admin/products', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },

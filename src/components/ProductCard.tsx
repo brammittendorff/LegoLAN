@@ -13,9 +13,12 @@ const DAY_LABEL: Record<EventDay, { nl: string; en: string }> = {
 export default function ProductCard({
   product,
   remaining,
+  closed = false,
 }: {
   product: Product
   remaining: number | null | undefined
+  /** Bestellen gesloten door de admin (bv. polo's al bij de drukker) */
+  closed?: boolean
 }) {
   const { add } = useCart()
   const { t, pick, lang } = useLang()
@@ -32,8 +35,8 @@ export default function ProductCard({
     extra: 'Extra',
   }[product.type]
 
-  const soldOut = typeof remaining === 'number' && remaining <= 0
-  const almostGone = typeof remaining === 'number' && remaining > 0 && remaining <= 10
+  const soldOut = closed || (typeof remaining === 'number' && remaining <= 0)
+  const almostGone = !closed && typeof remaining === 'number' && remaining > 0 && remaining <= 10
   const needsSize = !!product.sizes && !size
   const needsName = !!product.needsCustomName && customName.trim().length < 2
   const needsDays = !!product.perDay && days.length === 0
@@ -53,7 +56,7 @@ export default function ProductCard({
       <h3 className="text-lg font-semibold text-milk">{pick(product.name)}</h3>
       <p className="flex-1 text-sm text-smoke/80">{pick(product.tagline)}</p>
 
-      {product.perDay && (
+      {product.perDay && !soldOut && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t('Dagen', 'Days')}>
             {EVENT_DAYS.map((day) => (
@@ -80,7 +83,7 @@ export default function ProductCard({
         </>
       )}
 
-      {product.sizes && (
+      {product.sizes && !soldOut && (
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('Maat', 'Size')}>
           {product.sizes.map((s) => (
             <button
@@ -103,7 +106,7 @@ export default function ProductCard({
 
       {soldOut && (
         <p className="font-label text-sm uppercase tracking-widest neon-text">
-          {t('Uitverkocht', 'Sold out')}
+          {closed ? t('Bestellen gesloten', 'Orders closed') : t('Uitverkocht', 'Sold out')}
         </p>
       )}
       {almostGone && (
@@ -112,7 +115,7 @@ export default function ProductCard({
         </p>
       )}
 
-      {product.needsCustomName && (
+      {product.needsCustomName && !soldOut && (
         <input
           className="input"
           maxLength={20}

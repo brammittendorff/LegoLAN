@@ -9,6 +9,7 @@ export default function Shop() {
   const { t } = useLang()
   const [stock, setStock] = useState<Record<string, number | null>>()
   const [disabled, setDisabled] = useState<string[]>([])
+  const [closed, setClosed] = useState<string[]>([])
 
   useEffect(() => {
     api
@@ -16,6 +17,7 @@ export default function Shop() {
       .then((r) => {
         setStock(r.stock)
         setDisabled(r.disabled ?? [])
+        setClosed(r.closed ?? [])
       })
       .catch(() => setStock({}))
   }, [])
@@ -34,7 +36,12 @@ export default function Shop() {
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {PRODUCTS.filter((p) => !disabled.includes(p.id)).map((p) => (
-          <ProductCard key={p.id} product={p} remaining={stock?.[p.id]} />
+          <ProductCard
+            key={p.id}
+            product={p}
+            remaining={stock?.[p.id]}
+            closed={closed.includes(p.id)}
+          />
         ))}
       </div>
 

@@ -68,6 +68,14 @@ export function linePriceCents(product: Product, size: string | null | undefined
   return product.priceCents * (parseDays(size)?.length ?? 0)
 }
 
+/**
+ * Door de admin in Backstage te zetten:
+ * sale = te koop, soldout = uitverkocht, closed = bestellen gesloten (bv. polo's
+ * al bij de drukker), hidden = niet in de shop. De laatste drie zijn niet te bestellen.
+ */
+export const PRODUCT_MODES = ['sale', 'soldout', 'closed', 'hidden'] as const
+export type ProductMode = (typeof PRODUCT_MODES)[number]
+
 export type Product = {
   id: string
   name: L10n

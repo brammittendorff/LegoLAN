@@ -482,24 +482,30 @@ try {
     assertEq(r.status, 409, 'betaalde order niet annuleerbaar')
   })
 
-  await test('backstage: product uitzetten verbergt het en blokkeert checkout', async () => {
-    const zet = (productId, enabled, c) =>
-      jsonReq(base, '/api/admin/products', { method: 'PATCH', cookie: c, body: { productId, enabled } })
+  await test('backstage: productstatus (uitverkocht, gesloten, verborgen) blokkeert checkout', async () => {
+    const zet = (productId, mode, c) =>
+      jsonReq(base, '/api/admin/products', { method: 'PATCH', cookie: c, body: { productId, mode } })
     const adminCookie = await sessionCookie('admin@test.nl')
+    const id = 'diner-zaterdag-2026'
 
-    assertEq((await zet('diner-zaterdag-2026', false, cookie)).status, 403, 'users mogen niet')
-    assertEq((await zet('bestaat-niet', false, adminCookie)).status, 400, 'onbekend product')
-    assertEq((await zet('diner-zaterdag-2026', false, adminCookie)).status, 200, 'uitgezet')
+    assertEq((await zet(id, 'hidden', cookie)).status, 403, 'users mogen niet')
+    assertEq((await zet('bestaat-niet', 'hidden', adminCookie)).status, 400, 'onbekend product')
+    assertEq((await zet(id, 'weg', adminCookie)).status, 400, 'onbekende status')
 
-    let lijst = await jsonReq(base, '/api/admin/products', { cookie: adminCookie })
-    assert(lijst.data.products.some((p) => p.productId === 'diner-zaterdag-2026' && !p.enabled), 'staat uit')
-    let stock = await jsonReq(base, '/api/stock')
-    assert(stock.data.disabled.includes('diner-zaterdag-2026'), 'stock meldt uit')
-    assertEq((await koop([{ productId: 'diner-zaterdag-2026', qty: 1 }])).status, 409, 'checkout geweigerd')
+    for (const mode of ['soldout', 'closed', 'hidden']) {
+      assertEq((await zet(id, mode, adminCookie)).status, 200, `${mode} gezet`)
+      const lijst = await jsonReq(base, '/api/admin/products', { cookie: adminCookie })
+      assert(lijst.data.products.some((p) => p.productId === id && p.mode === mode), `${mode} in lijst`)
+      const stock = (await jsonReq(base, '/api/stock')).data
+      assertEq(stock.stock[id], 0, `${mode}: voorraad 0`)
+      assertEq(stock.disabled.includes(id), mode === 'hidden', `${mode}: verborgen-lijst`)
+      assertEq(stock.closed.includes(id), mode === 'closed', `${mode}: gesloten-lijst`)
+      assertEq((await koop([{ productId: id, qty: 1 }])).status, 409, `${mode}: checkout geweigerd`)
+    }
 
-    assertEq((await zet('diner-zaterdag-2026', true, adminCookie)).status, 200, 'weer aan')
-    stock = await jsonReq(base, '/api/stock')
-    assert(!stock.data.disabled.includes('diner-zaterdag-2026'), 'weer te koop')
+    assertEq((await zet(id, 'sale', adminCookie)).status, 200, 'weer te koop')
+    const stock = (await jsonReq(base, '/api/stock')).data
+    assert(stock.stock[id] > 0 && !stock.disabled.includes(id) && !stock.closed.includes(id), 'weer te koop')
   })
 
   await test('backstage: edities bijschrijven synct fototoegang', async () => {

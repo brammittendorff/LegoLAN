@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { EDITION_YEAR, getProduct, PRODUCTS } from '../../shared/products'
+import { EDITION_YEAR, getProduct, PRODUCTS, type ProductMode } from '../../shared/products'
 import { buildRoom } from '../../shared/seatmap'
 import { api, type AdminOverview, type AdminStats, type DayPoint } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -20,7 +20,7 @@ export default function Admin() {
   const [data, setData] = useState<AdminOverview | null>(null)
   const [users, setUsers] = useState<Awaited<ReturnType<typeof api.adminUsers>>['users'] | null>(null)
   const [stats, setStats] = useState<AdminStats | null>(null)
-  const [productsOn, setProductsOn] = useState<Record<string, boolean> | null>(null)
+  const [productModes, setProductModes] = useState<Record<string, ProductMode> | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [newAdmin, setNewAdmin] = useState('')
@@ -51,7 +51,7 @@ export default function Admin() {
   const loadProducts = () =>
     api
       .adminProducts()
-      .then((r) => setProductsOn(Object.fromEntries(r.products.map((p) => [p.productId, p.enabled]))))
+      .then((r) => setProductModes(Object.fromEntries(r.products.map((p) => [p.productId, p.mode]))))
       .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
 
   useEffect(() => {
@@ -458,20 +458,19 @@ export default function Admin() {
       )}
 
       {/* ------------------------------------------------ Producten */}
-      {tab === 'producten' && productsOn && (
+      {tab === 'producten' && productModes && (
         <TableSection title={t('Producten in de shop', 'Products in the shop')}>
-          <table className="card-velvet w-full min-w-[560px] text-left text-sm">
+          <table className="card-velvet w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="font-label text-[11px] uppercase tracking-widest text-smoke/60">
                 <th className="px-3 py-2">Product</th>
                 <th className="px-3 py-2">{t('Prijs', 'Price')}</th>
                 <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {PRODUCTS.map((p) => {
-                const on = productsOn[p.id] ?? true
+                const current = productModes[p.id] ?? 'sale'
                 return (
                   <tr key={p.id} className="border-t border-grape/20">
                     <td className="px-3 py-2 text-milk">
@@ -482,37 +481,34 @@ export default function Admin() {
                       {euro(p.priceCents)}
                       {p.perDay ? t(' / dag', ' / day') : ''}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      <span className={on ? 'text-bulb' : 'text-neon-soft'}>
-                        {on ? t('Te koop', 'On sale') : t('Uit', 'Off')}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        className={`${on ? 'btn-ghost' : 'btn-neon'} !px-3 !py-1 text-xs`}
-                        disabled={busy !== ''}
-                        onClick={() => {
-                          if (
-                            on &&
-                            !window.confirm(
-                              t(
-                                `${pick(p.name)} uit de shop halen?`,
-                                `Take ${pick(p.name)} out of the shop?`,
-                              ),
-                            )
-                          ) {
-                            return
-                          }
-                          void run(
-                            p.id,
-                            () => api.adminSetProduct({ productId: p.id, enabled: !on }),
-                            loadProducts,
-                          )
-                        }}
-                      >
-                        {on ? t('Uitzetten', 'Disable') : t('Aanzetten', 'Enable')}
-                      </button>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Status">
+                        {PRODUCT_MODE_LABELS.map(({ mode, nl, en }) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={current === mode}
+                            disabled={busy !== '' || current === mode}
+                            onClick={() =>
+                              void run(
+                                p.id,
+                                () => api.adminSetProduct({ productId: p.id, mode }),
+                                loadProducts,
+                              )
+                            }
+                            className={`rounded-lg border px-3 py-1 font-label text-xs transition-colors ${
+                              current === mode
+                                ? mode === 'sale'
+                                  ? 'border-bulb bg-bulb font-bold text-void'
+                                  : 'border-neon bg-neon font-bold text-void'
+                                : 'border-grape/40 text-smoke hover:border-neon'
+                            }`}
+                          >
+                            {t(nl, en)}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -521,8 +517,8 @@ export default function Admin() {
           </table>
           <p className="mt-3 text-xs text-smoke/60">
             {t(
-              'Uitgezette producten verdwijnen uit de shop en kunnen niet meer worden afgerekend. Bestaande bestellingen blijven geldig. Nieuwe producten of prijzen gaan nog via shared/products.ts.',
-              'Disabled products disappear from the shop and can no longer be checked out. Existing orders stay valid. New products or prices still go through shared/products.ts.',
+              'Uitverkocht en Gesloten blijven zichtbaar in de shop maar zijn niet te bestellen; Gesloten is voor als de bestelling al weg is (bv. polo\'s bij de drukker). Verborgen haalt het product uit de shop. Bestaande bestellingen blijven geldig. Nieuwe producten of prijzen gaan nog via shared/products.ts.',
+              'Sold out and Closed stay visible in the shop but cannot be ordered; Closed is for when the order has already gone out (e.g. polos at the printer). Hidden removes the product from the shop. Existing orders stay valid. New products or prices still go through shared/products.ts.',
             )}
           </p>
         </TableSection>
@@ -826,6 +822,13 @@ export default function Admin() {
     void run(email, () => api.adminUpdateUser({ email, role: next }), loadUsers)
   }
 }
+
+const PRODUCT_MODE_LABELS: { mode: ProductMode; nl: string; en: string }[] = [
+  { mode: 'sale', nl: 'Te koop', en: 'On sale' },
+  { mode: 'soldout', nl: 'Uitverkocht', en: 'Sold out' },
+  { mode: 'closed', nl: 'Gesloten', en: 'Closed' },
+  { mode: 'hidden', nl: 'Verborgen', en: 'Hidden' },
+]
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (

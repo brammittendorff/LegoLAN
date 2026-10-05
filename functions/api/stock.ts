@@ -8,7 +8,7 @@ import {
 } from '../../shared/products'
 import { json } from '../../server/http'
 import { bookedPerPoolDay, expireStalePending, soldCounts } from '../../server/orders'
-import { disabledProductIds } from '../../server/products'
+import { productModes } from '../../server/products'
 import type { Env } from '../../server/types'
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
@@ -44,7 +44,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         product.capacity === null ? null : Math.max(0, product.capacity - (sold[product.id] ?? 0))
     }
   }
-  // Door de admin uitgezet: de shop verbergt ze, checkout weigert ze.
-  const disabled = [...(await disabledProductIds(env))]
-  return json({ stock, perDay, disabled })
+  // Wat de admin niet op 'te koop' heeft: verborgen producten toont de shop niet,
+  // uitverkocht en gesloten tonen we met voorraad 0 zodat niemand ze bestelt.
+  const modes = await productModes(env)
+  const disabled: string[] = []
+  const closed: string[] = []
+  for (const [id, mode] of modes) {
+    if (mode === 'hidden') disabled.push(id)
+    if (mode === 'closed') closed.push(id)
+    stock[id] = 0
+    if (perDay[id]) perDay[id] = Object.fromEntries(EVENT_DAYS.map((d) => [d, 0]))
+  }
+  return json({ stock, perDay, disabled, closed })
 }
