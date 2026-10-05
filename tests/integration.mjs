@@ -623,6 +623,50 @@ try {
     assert(u.aliases?.includes('oud-adres@test.nl'), 'alias zichtbaar in lijst')
   })
 
+  await test('vol is vol: diner en zaal raken uitverkocht, ook als admin op te koop zet', async () => {
+    const adminCookie = await sessionCookie('admin@test.nl')
+    const voor = (await jsonReq(base, '/api/stock')).data.stock
+    const dinerOver = voor['diner-zaterdag-2026']
+    const zaalOver = voor['ticket-weekend-2026']
+    assert(dinerOver > 0 && zaalOver > 0, 'er is nog wat over om op te maken')
+
+    // Eén betaalde order die precies de rest van het diner en de zaal opmaakt.
+    d1(
+      persist,
+      "INSERT INTO orders (id, created_at, status, name, first_name, last_name, email, amount_cents, edition) VALUES ('test-vol', 1, 'paid', 'Vol Le', 'Vol', 'Le', 'vol@test.nl', 0, 2026)",
+    )
+    d1(
+      persist,
+      `INSERT INTO order_items (order_id, product_id, size, qty, price_cents) VALUES ('test-vol', 'diner-zaterdag-2026', NULL, ${dinerOver}, 0), ('test-vol', 'ticket-weekend-2026', NULL, ${zaalOver}, 0)`,
+    )
+    try {
+      for (const ronde of ['vanzelf', 'admin zet te koop']) {
+        if (ronde === 'admin zet te koop') {
+          for (const productId of ['diner-zaterdag-2026', 'ticket-weekend-2026', 'ticket-dag-2026']) {
+            const r = await jsonReq(base, '/api/admin/products', {
+              method: 'PATCH',
+              cookie: adminCookie,
+              body: { productId, mode: 'sale' },
+            })
+            assertEq(r.status, 200, `${productId} op te koop`)
+          }
+        }
+        const stock = (await jsonReq(base, '/api/stock')).data.stock
+        assertEq(stock['diner-zaterdag-2026'], 0, `${ronde}: diner op 0`)
+        assertEq(stock['ticket-weekend-2026'], 0, `${ronde}: weekend op 0`)
+        assertEq(stock['ticket-dag-2026'], 0, `${ronde}: dagticket op 0 (zelfde zaal)`)
+        assertEq((await koop([{ productId: 'diner-zaterdag-2026', qty: 1 }])).status, 409, `${ronde}: diner geweigerd`)
+        assertEq((await koop([{ productId: 'ticket-weekend-2026', qty: 1 }])).status, 409, `${ronde}: weekend geweigerd`)
+        assertEq((await koop([{ productId: 'ticket-dag-2026', size: 'za', qty: 1 }])).status, 409, `${ronde}: dagticket geweigerd`)
+      }
+    } finally {
+      d1(persist, "DELETE FROM order_items WHERE order_id = 'test-vol'")
+      d1(persist, "DELETE FROM orders WHERE id = 'test-vol'")
+    }
+    const na = (await jsonReq(base, '/api/stock')).data.stock
+    assertEq(na['diner-zaterdag-2026'], dinerOver, 'diner weer vrij na opruimen')
+  })
+
 } finally {
   stopServer(proc)
 }
