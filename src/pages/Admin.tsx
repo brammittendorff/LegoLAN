@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { EDITION_YEAR, getProduct } from '../../shared/products'
+import { EDITION_YEAR, getProduct, PRODUCTS } from '../../shared/products'
 import { buildRoom } from '../../shared/seatmap'
 import { api, type AdminOverview, type AdminStats, type DayPoint } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -11,7 +11,7 @@ import { euro } from '../lib/money'
 const EDITIE_JAREN = Array.from({ length: EDITION_YEAR - 2024 + 1 }, (_, i) => 2024 + i)
 
 type UserEdit = { firstName: string; lastName: string; nickname: string; editions: number[]; aliases: string }
-type Tab = 'verkoop' | 'plekken' | 'polos' | 'gebruikers' | 'grafieken'
+type Tab = 'verkoop' | 'producten' | 'plekken' | 'polos' | 'gebruikers' | 'grafieken'
 
 export default function Admin() {
   const { t, pick } = useLang()
@@ -20,6 +20,7 @@ export default function Admin() {
   const [data, setData] = useState<AdminOverview | null>(null)
   const [users, setUsers] = useState<Awaited<ReturnType<typeof api.adminUsers>>['users'] | null>(null)
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [productsOn, setProductsOn] = useState<Record<string, boolean> | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [newAdmin, setNewAdmin] = useState('')
@@ -47,11 +48,18 @@ export default function Admin() {
       .then(setStats)
       .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
 
+  const loadProducts = () =>
+    api
+      .adminProducts()
+      .then((r) => setProductsOn(Object.fromEntries(r.products.map((p) => [p.productId, p.enabled]))))
+      .catch((e) => setError(e instanceof Error ? e.message : 'fout'))
+
   useEffect(() => {
     if (!isAdmin) return
     setError('')
     if (tab === 'gebruikers') void loadUsers()
     else if (tab === 'grafieken') void loadStats()
+    else if (tab === 'producten') void loadProducts()
     else void load()
   }, [isAdmin, tab])
 
@@ -92,6 +100,7 @@ export default function Admin() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'verkoop', label: t('Verkoop', 'Sales') },
+    { key: 'producten', label: t('Producten', 'Products') },
     { key: 'plekken', label: t('Plekken', 'Seats') },
     { key: 'polos', label: "Polo's" },
     { key: 'gebruikers', label: t('Gebruikers', 'Users') },
@@ -445,6 +454,77 @@ export default function Admin() {
               )}
             </tbody>
           </table>
+        </TableSection>
+      )}
+
+      {/* ------------------------------------------------ Producten */}
+      {tab === 'producten' && productsOn && (
+        <TableSection title={t('Producten in de shop', 'Products in the shop')}>
+          <table className="card-velvet w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="font-label text-[11px] uppercase tracking-widest text-smoke/60">
+                <th className="px-3 py-2">Product</th>
+                <th className="px-3 py-2">{t('Prijs', 'Price')}</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {PRODUCTS.map((p) => {
+                const on = productsOn[p.id] ?? true
+                return (
+                  <tr key={p.id} className="border-t border-grape/20">
+                    <td className="px-3 py-2 text-milk">
+                      {pick(p.name)}
+                      <span className="block text-xs text-smoke/60">{p.id}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 font-label text-bulb">
+                      {euro(p.priceCents)}
+                      {p.perDay ? t(' / dag', ' / day') : ''}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span className={on ? 'text-bulb' : 'text-neon-soft'}>
+                        {on ? t('Te koop', 'On sale') : t('Uit', 'Off')}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        className={`${on ? 'btn-ghost' : 'btn-neon'} !px-3 !py-1 text-xs`}
+                        disabled={busy !== ''}
+                        onClick={() => {
+                          if (
+                            on &&
+                            !window.confirm(
+                              t(
+                                `${pick(p.name)} uit de shop halen?`,
+                                `Take ${pick(p.name)} out of the shop?`,
+                              ),
+                            )
+                          ) {
+                            return
+                          }
+                          void run(
+                            p.id,
+                            () => api.adminSetProduct({ productId: p.id, enabled: !on }),
+                            loadProducts,
+                          )
+                        }}
+                      >
+                        {on ? t('Uitzetten', 'Disable') : t('Aanzetten', 'Enable')}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <p className="mt-3 text-xs text-smoke/60">
+            {t(
+              'Uitgezette producten verdwijnen uit de shop en kunnen niet meer worden afgerekend. Bestaande bestellingen blijven geldig. Nieuwe producten of prijzen gaan nog via shared/products.ts.',
+              'Disabled products disappear from the shop and can no longer be checked out. Existing orders stay valid. New products or prices still go through shared/products.ts.',
+            )}
+          </p>
         </TableSection>
       )}
 

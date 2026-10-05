@@ -90,6 +90,8 @@ export const api = {
       stock: Record<string, number | null>
       /** Beschikbaar per eventdag, voor producten die je per dag boekt */
       perDay: Record<string, Record<string, number>>
+      /** Product-id's die de admin heeft uitgezet */
+      disabled: string[]
     }>('/api/stock'),
 
   checkout: (payload: {
@@ -201,6 +203,16 @@ export const api = {
 
   adminUpdatePolo: (payload: { itemId: number; customName: string; size?: string }) =>
     req<{ ok: true }>('/api/admin/polo', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
+  adminProducts: () =>
+    req<{ products: { productId: string; enabled: boolean }[] }>('/api/admin/products'),
+
+  adminSetProduct: (payload: { productId: string; enabled: boolean }) =>
+    req<{ ok: true }>('/api/admin/products', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),

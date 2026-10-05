@@ -482,6 +482,26 @@ try {
     assertEq(r.status, 409, 'betaalde order niet annuleerbaar')
   })
 
+  await test('backstage: product uitzetten verbergt het en blokkeert checkout', async () => {
+    const zet = (productId, enabled, c) =>
+      jsonReq(base, '/api/admin/products', { method: 'PATCH', cookie: c, body: { productId, enabled } })
+    const adminCookie = await sessionCookie('admin@test.nl')
+
+    assertEq((await zet('diner-zaterdag-2026', false, cookie)).status, 403, 'users mogen niet')
+    assertEq((await zet('bestaat-niet', false, adminCookie)).status, 400, 'onbekend product')
+    assertEq((await zet('diner-zaterdag-2026', false, adminCookie)).status, 200, 'uitgezet')
+
+    let lijst = await jsonReq(base, '/api/admin/products', { cookie: adminCookie })
+    assert(lijst.data.products.some((p) => p.productId === 'diner-zaterdag-2026' && !p.enabled), 'staat uit')
+    let stock = await jsonReq(base, '/api/stock')
+    assert(stock.data.disabled.includes('diner-zaterdag-2026'), 'stock meldt uit')
+    assertEq((await koop([{ productId: 'diner-zaterdag-2026', qty: 1 }])).status, 409, 'checkout geweigerd')
+
+    assertEq((await zet('diner-zaterdag-2026', true, adminCookie)).status, 200, 'weer aan')
+    stock = await jsonReq(base, '/api/stock')
+    assert(!stock.data.disabled.includes('diner-zaterdag-2026'), 'weer te koop')
+  })
+
   await test('backstage: edities bijschrijven synct fototoegang', async () => {
     const adminCookie = await sessionCookie('admin@test.nl')
     let r = await jsonReq(base, '/api/admin/users', {

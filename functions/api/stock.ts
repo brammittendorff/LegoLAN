@@ -8,6 +8,7 @@ import {
 } from '../../shared/products'
 import { json } from '../../server/http'
 import { bookedPerPoolDay, expireStalePending, soldCounts } from '../../server/orders'
+import { disabledProductIds } from '../../server/products'
 import type { Env } from '../../server/types'
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
@@ -43,5 +44,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         product.capacity === null ? null : Math.max(0, product.capacity - (sold[product.id] ?? 0))
     }
   }
-  return json({ stock, perDay })
+  // Door de admin uitgezet: de shop verbergt ze, checkout weigert ze.
+  const disabled = [...(await disabledProductIds(env))]
+  return json({ stock, perDay, disabled })
 }

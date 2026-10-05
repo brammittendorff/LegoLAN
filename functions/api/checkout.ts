@@ -11,6 +11,7 @@ import {
 import { err, json } from '../../server/http'
 import { createMolliePayment } from '../../server/mollie'
 import { bookedPerPoolDay, expireStalePending, markOrderPaid, soldCounts } from '../../server/orders'
+import { disabledProductIds } from '../../server/products'
 import { verifyTurnstile } from '../../server/turnstile'
 import type { Env } from '../../server/types'
 
@@ -60,9 +61,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     qty: number
     priceCents: number
   }[] = []
+  const disabled = await disabledProductIds(env)
   for (const item of body.items) {
     const product = item.productId ? getProduct(item.productId) : undefined
     if (!product) return err('Onbekend product in je mandje.')
+    if (disabled.has(product.id)) {
+      return err(`${product.name.nl} is op dit moment niet te koop. Haal het uit je mandje.`, 409)
+    }
     const qty = item.qty
     if (!Number.isInteger(qty) || qty === undefined || qty < 1 || qty > 10) {
       return err(`Ongeldig aantal voor ${product.name.nl}.`)
