@@ -131,9 +131,10 @@ export async function editionsForEmail(env: Env, email: string): Promise<number[
       `SELECT COUNT(*) AS n
          FROM orders o
          JOIN order_items oi ON oi.order_id = o.id
-        WHERE o.status = 'paid' AND lower(o.email) IN (${emailPh}) AND oi.product_id IN (${ticketPh})`,
+        WHERE o.status = 'paid' AND o.edition = ? AND lower(o.email) IN (${emailPh})
+          AND oi.product_id IN (${ticketPh})`,
     )
-      .bind(...emails, ...ticketIds)
+      .bind(EDITION_YEAR, ...emails, ...ticketIds)
       .first<{ n: number }>()
     if ((row?.n ?? 0) > 0) editions.add(EDITION_YEAR)
   }

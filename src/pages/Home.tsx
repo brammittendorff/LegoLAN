@@ -8,6 +8,7 @@ import PoleMinifig from '../components/PoleMinifig'
 export default function Home() {
   const { t } = useLang()
   const c = useCopy()
+  const done = THEME.finished
 
   const clubFeatures = [
     {
@@ -62,15 +63,21 @@ export default function Home() {
           </h1>
           <p className="neon-script -mt-1 rotate-[-4deg] text-6xl md:text-8xl">{THEME.scriptWord}</p>
 
-          <p className="mx-auto mt-10 max-w-xl text-lg text-smoke">{c.hero.sub}</p>
+          <p className="mx-auto mt-10 max-w-xl text-lg text-smoke">{done ? c.wrapUp.sub : c.hero.sub}</p>
           <p className="mt-4 font-label text-xs tracking-[0.2em] text-smoke/70">
             {c.date} · {c.location}
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link to="/shop" className="btn-neon">
-              {c.hero.ctaPrimary}
-            </Link>
+            {done ? (
+              <Link to="/fotos" className="btn-neon">
+                {c.wrapUp.cta}
+              </Link>
+            ) : (
+              <Link to="/shop" className="btn-neon">
+                {c.hero.ctaPrimary}
+              </Link>
+            )}
             <a href="#over" className="btn-ghost">
               {c.hero.ctaSecondary}
             </a>
@@ -121,7 +128,9 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 pb-20">
         <h2 className="text-center">
           <span className="block font-label text-xs uppercase tracking-[0.3em] text-bulb">
-            {t('Onder voorbehoud, boven verwachting', 'Subject to change, beyond expectations')}
+            {done
+              ? t('Zo ging het', 'How it went')
+              : t('Onder voorbehoud, boven verwachting', 'Subject to change, beyond expectations')}
           </span>
           <span className="neon-script mt-2 block text-5xl md:text-6xl">
             {t('het programma', 'the program')}
@@ -135,19 +144,25 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-bulb">{c.buildup}</p>
+        {!done && <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-bulb">{c.buildup}</p>}
       </section>
 
       <section className="mx-auto max-w-4xl px-6 pb-20">
         <div className="neon-box bg-velvet/60 p-8 text-center md:p-12">
           <p className="font-label text-[11px] uppercase tracking-[0.3em] text-grape">
-            {t('Vorig jaar', 'Last year')}
+            {done ? t('Dit jaar', 'This year') : t('Vorig jaar', 'Last year')}
           </p>
-          <h2 className="mt-3 text-2xl font-bold text-milk">{c.recap.title}</h2>
-          <p className="mx-auto mt-4 max-w-xl text-smoke/85">{c.recap.text}</p>
-          <Link to="/shop" className="btn-neon mt-8">
-            {t('Zeker weten dat je erbij bent', 'Make sure you are in')}
-          </Link>
+          <h2 className="mt-3 text-2xl font-bold text-milk">{done ? c.wrapUp.title : c.recap.title}</h2>
+          <p className="mx-auto mt-4 max-w-xl text-smoke/85">{done ? c.wrapUp.text : c.recap.text}</p>
+          {done ? (
+            <Link to="/fotos" className="btn-neon mt-8">
+              {c.wrapUp.cta}
+            </Link>
+          ) : (
+            <Link to="/shop" className="btn-neon mt-8">
+              {t('Zeker weten dat je erbij bent', 'Make sure you are in')}
+            </Link>
+          )}
         </div>
       </section>
 

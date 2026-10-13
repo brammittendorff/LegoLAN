@@ -18,6 +18,8 @@ export type ThemeCopy = {
   marqueeWords: readonly string[]
   program: readonly { title: string; text: string }[]
   recap: { title: string; text: string }
+  /** Copy voor na afloop (zie THEME.finished). */
+  wrapUp: { sub: string; cta: string; title: string; text: string; shop: string }
   smallPrint: string
 }
 
@@ -81,6 +83,16 @@ const nl: ThemeCopy = {
     text:
       'LEGOLAN 2025 was drie dagen yeehaw: toernooien, twijfelachtige cowboyhoeden en te weinig slaap. ' +
       'Dit jaar ruilen we de saloon in voor iets... intiemers.',
+  },
+
+  wrapUp: {
+    sub: 'Het is voorbij. Drie dagen games, lasers en veel te weinig slaap. Bedankt dat je erbij was!',
+    cta: "Bekijk de foto's",
+    title: 'Dat was de Stripclub Editie',
+    text:
+      'De kabels zijn opgerold, de paal is weer gewoon een paal en de zaal ruikt bijna weer normaal. ' +
+      "Was je erbij? Log in en kijk de foto's terug. Wat er op LEGOLAN gebeurt, blijft op LEGOLAN.",
+    shop: 'LEGOLAN 2026 is voorbij, de verkoop is gesloten. Schrijf je in voor de nieuwsbrief en hoor als eerste wanneer de tickets voor volgend jaar live gaan.',
   },
 
   smallPrint:
@@ -148,12 +160,24 @@ const en: ThemeCopy = {
       'This year we are trading the saloon for something... more intimate.',
   },
 
+  wrapUp: {
+    sub: 'That is a wrap. Three days of games, lasers and not nearly enough sleep. Thanks for being there!',
+    cta: 'See the photos',
+    title: 'That was the Strip Club Edition',
+    text:
+      'The cables are coiled, the pole is just a pole again and the hall almost smells normal. ' +
+      'Were you there? Sign in and relive it in the photos. What happens at LEGOLAN stays at LEGOLAN.',
+    shop: 'LEGOLAN 2026 is over and sales are closed. Join the newsletter to be the first to know when tickets for next year go live.',
+  },
+
   smallPrint:
     'LEGOLAN is not affiliated with the LEGO Group. Or with an actual strip club. Really not.',
 }
 
 export const THEME = {
   year: 2026,
+  // Na het event op true: homepage wordt een terugblik met link naar de foto's.
+  finished: true,
   name: 'LEGOLAN',
   scriptWord: 'stripclub', // het neon-krulwoord onder het logo
   socials: {

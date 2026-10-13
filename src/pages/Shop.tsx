@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { PRODUCTS } from '../../shared/products'
 import { api } from '../lib/api'
 import { useLang } from '../lib/i18n'
+import { THEME, useCopy } from '../theme'
 import ProductCard from '../components/ProductCard'
 
 export default function Shop() {
   const { t } = useLang()
+  const c = useCopy()
   const [stock, setStock] = useState<Record<string, number | null>>()
   const [disabled, setDisabled] = useState<string[]>([])
   const [closed, setClosed] = useState<string[]>([])
@@ -34,24 +36,35 @@ export default function Shop() {
         </p>
       </header>
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {PRODUCTS.filter((p) => !disabled.includes(p.id)).map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            remaining={stock?.[p.id]}
-            closed={closed.includes(p.id)}
-          />
-        ))}
-      </div>
+      {THEME.finished ? (
+        <p className="neon-box mx-auto mt-10 max-w-2xl bg-velvet/60 p-6 text-center text-smoke">
+          {c.wrapUp.shop}{' '}
+          <Link to="/#nieuwsbrief" className="text-neon hover:underline">
+            {t('Naar de nieuwsbrief', 'To the newsletter')}
+          </Link>
+        </p>
+      ) : (
+        <>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {PRODUCTS.filter((p) => !disabled.includes(p.id)).map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                remaining={stock?.[p.id]}
+                closed={closed.includes(p.id)}
+              />
+            ))}
+          </div>
 
-      <p className="mt-12 text-center text-sm text-smoke/70">
-        {t('Ticket gekocht? Daarna claim je je plek op', 'Bought a ticket? Then claim your spot on')}{' '}
-        <Link to="/zaal" className="text-neon hover:underline">
-          {t('de plattegrond', 'the floor plan')}
-        </Link>
-        .
-      </p>
+          <p className="mt-12 text-center text-sm text-smoke/70">
+            {t('Ticket gekocht? Daarna claim je je plek op', 'Bought a ticket? Then claim your spot on')}{' '}
+            <Link to="/zaal" className="text-neon hover:underline">
+              {t('de plattegrond', 'the floor plan')}
+            </Link>
+            .
+          </p>
+        </>
+      )}
     </div>
   )
 }

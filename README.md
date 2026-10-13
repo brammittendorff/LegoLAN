@@ -131,6 +131,11 @@ in de bijbehorende map op Wasabi zetten. De plattegrond begint automatisch
 leeg (plekken zijn per editie); oude edities blijven zichtbaar op /account en
 in de foto-albums.
 
+Event voorbij? Zet `finished: true` in het themabestand: de homepage wordt een
+terugblik met een knop naar de foto's en de shop toont geen producten meer.
+Zet de producten in Backstage ook op *gesloten*, dan weigert de server ze.
+Nieuw themabestand begint weer met `finished: false`.
+
 ## Copy-regels
 
 Nederlands is de standaardtaal; alle teksten bestaan ook in het Engels
