@@ -1,6 +1,5 @@
 import { EDITION_YEAR } from '../../../shared/products'
 import { emailFromRequest } from '../../../server/auth'
-import { editionFinished } from '../../../server/edition'
 import { err, json } from '../../../server/http'
 import type { Env } from '../../../server/types'
 
@@ -12,5 +11,5 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   )
     .bind(EDITION_YEAR)
     .all<{ seatId: string; nickname: string }>()
-  return json({ seats: rs.results, finished: editionFinished(env) })
+  return json({ seats: rs.results })
 }

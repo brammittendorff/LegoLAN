@@ -112,7 +112,9 @@ export const api = {
       '/api/my/orders',
     ),
 
-  seats: () => req<{ seats: { seatId: string; nickname: string }[]; finished: boolean }>('/api/seats'),
+  seats: () => req<{ seats: { seatId: string; nickname: string }[] }>('/api/seats'),
+
+  edition: () => req<{ year: number; finished: boolean }>('/api/edition'),
 
   claimSeat: (payload: { orderId: string; seatId: string; nickname: string; email?: string }) =>
     post<{ ok: true; invited: boolean }>('/api/seats/claim', payload),
@@ -213,6 +215,13 @@ export const api = {
 
   adminProducts: () =>
     req<{ products: { productId: string; mode: ProductMode }[] }>('/api/admin/products'),
+
+  adminSetEdition: (finished: boolean) =>
+    req<{ ok: true; finished: boolean }>('/api/admin/edition', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ finished }),
+    }),
 
   adminSetProduct: (payload: { productId: string; mode: ProductMode }) =>
     req<{ ok: true }>('/api/admin/products', {

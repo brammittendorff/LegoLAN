@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { EDITION_FINISHED } from '../../shared/products'
 import { THEME, useCopy } from '../theme'
+import { useEdition } from '../lib/edition'
 import { useLang } from '../lib/i18n'
 import MarqueeStrip from '../components/MarqueeStrip'
 import NewsletterForm from '../components/NewsletterForm'
@@ -9,7 +9,10 @@ import PoleMinifig from '../components/PoleMinifig'
 export default function Home() {
   const { t } = useLang()
   const c = useCopy()
-  const done = EDITION_FINISHED
+  const { finished } = useEdition()
+  const done = finished === true
+  // Eerste bezoek: even wachten op de server i.p.v. de verkeerde knoppen tonen.
+  const pending = finished === null ? ' invisible' : ''
 
   const clubFeatures = [
     {
@@ -64,12 +67,12 @@ export default function Home() {
           </h1>
           <p className="neon-script -mt-1 rotate-[-4deg] text-6xl md:text-8xl">{THEME.scriptWord}</p>
 
-          <p className="mx-auto mt-10 max-w-xl text-lg text-smoke">{done ? c.wrapUp.sub : c.hero.sub}</p>
+          <p className={`mx-auto mt-10 max-w-xl text-lg text-smoke${pending}`}>{done ? c.wrapUp.sub : c.hero.sub}</p>
           <p className="mt-4 font-label text-xs tracking-[0.2em] text-smoke/70">
             {c.date} · {c.location}
           </p>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
+          <div className={`mt-10 flex flex-wrap justify-center gap-4${pending}`}>
             {done ? (
               <Link to="/fotos" className="btn-neon">
                 {c.wrapUp.cta}
@@ -145,11 +148,11 @@ export default function Home() {
             </div>
           ))}
         </div>
-        {!done && <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-bulb">{c.buildup}</p>}
+        {finished === false && <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-bulb">{c.buildup}</p>}
       </section>
 
       <section className="mx-auto max-w-4xl px-6 pb-20">
-        <div className="neon-box bg-velvet/60 p-8 text-center md:p-12">
+        <div className={`neon-box bg-velvet/60 p-8 text-center md:p-12${pending}`}>
           <p className="font-label text-[11px] uppercase tracking-[0.3em] text-grape">
             {done ? t('Dit jaar', 'This year') : t('Vorig jaar', 'Last year')}
           </p>

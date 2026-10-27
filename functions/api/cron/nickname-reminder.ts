@@ -19,7 +19,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return err('Geen toegang.', 403)
   }
   // Event voorbij: niemand hoeft nog een naam op de plattegrond.
-  if (editionFinished(env)) return json({ ok: true, sent: 0, skipped: 'editie voorbij' })
+  if (await editionFinished(env)) return json({ ok: true, sent: 0, skipped: 'editie voorbij' })
 
   const cutoff = Date.now() - REMIND_INTERVAL_MS
   const rs = await env.DB.prepare(

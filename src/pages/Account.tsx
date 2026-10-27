@@ -1,14 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { EDITION_FINISHED } from '../../shared/products'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useEdition } from '../lib/edition'
 import { useLang } from '../lib/i18n'
 import LoginForm from '../components/LoginForm'
 
 export default function Account() {
   const { t } = useLang()
   const { user, loading, refresh, logout } = useAuth()
+  const edition = useEdition()
   const [params] = useSearchParams()
   const badLink = params.get('fout') === 'link'
 
@@ -131,7 +132,7 @@ export default function Account() {
                     {t('bekijk de plattegrond', 'view the floor plan')}
                   </Link>
                 </>
-              ) : EDITION_FINISHED ? null : (
+              ) : edition.finished !== false ? null : (
                 <>
                   {t('Nog geen plek in de zaal geclaimd.', 'No seat in the hall claimed yet.')}{' '}
                   <Link to="/zaal" className="text-neon hover:underline">

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { EDITION_FINISHED, EDITION_YEAR } from '../../shared/products'
+import { EDITION_YEAR } from '../../shared/products'
 import { buildRoom, type Cell } from '../../shared/seatmap'
 import { api, type SeatClaim } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useEdition } from '../lib/edition'
 import { useLang } from '../lib/i18n'
 import LoginForm from '../components/LoginForm'
 
@@ -42,8 +43,8 @@ export default function Zaal() {
   const paramOrder = params.get('order')
 
   const [claims, setClaims] = useState<Map<string, string>>(new Map())
-  // Editie voorbij (de server beslist): plattegrond is alleen nog een terugblik.
-  const [finished, setFinished] = useState(EDITION_FINISHED)
+  // Editie voorbij (Backstage-knop): plattegrond is alleen nog een terugblik.
+  const finished = useEdition().finished === true
   const [orders, setOrders] = useState<ClaimOrder[]>([])
   const [nickname, setNickname] = useState(() => {
     try {
@@ -72,9 +73,8 @@ export default function Zaal() {
   }, [user])
 
   const refreshSeats = useCallback(async () => {
-    const { seats, finished } = await api.seats()
+    const { seats } = await api.seats()
     setClaims(new Map(seats.map((s) => [s.seatId, s.nickname])))
-    setFinished(finished)
   }, [])
 
   // Jouw bestellingen komen bij je sessie vandaan; de ?order=-link uit de

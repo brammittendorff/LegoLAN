@@ -4,6 +4,7 @@ import { EDITION_YEAR, getProduct, PRODUCTS, type ProductMode } from '../../shar
 import { buildRoom } from '../../shared/seatmap'
 import { api, type AdminOverview, type AdminStats, type DayPoint } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useEdition } from '../lib/edition'
 import { useLang } from '../lib/i18n'
 import { euro } from '../lib/money'
 
@@ -27,6 +28,8 @@ export default function Admin() {
   const [poloEdits, setPoloEdits] = useState<Record<number, { customName: string; size: string }>>({})
   const [assign, setAssign] = useState({ seatId: '', email: '', nickname: '' })
   const [userEdits, setUserEdits] = useState<Record<string, UserEdit>>({})
+  const edition = useEdition()
+  const [confirmEdition, setConfirmEdition] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -115,6 +118,62 @@ export default function Admin() {
           {t(`Beheer voor editie ${EDITION_YEAR}`, `Admin for edition ${EDITION_YEAR}`)}
         </p>
       </header>
+
+      {/* De jaarlijkse uit-knop */}
+      <section className="neon-box mx-auto mt-8 max-w-2xl bg-velvet/60 p-5 text-center">
+        <p className="font-label text-[11px] uppercase tracking-[0.3em] text-bulb">
+          {t(`Editie ${EDITION_YEAR}`, `Edition ${EDITION_YEAR}`)}
+        </p>
+        <p className="mt-2 text-milk">
+          {edition.finished
+            ? t(
+                'Voorbij. De site is een terugblik: shop dicht, plattegrond vast, geen herinneringsmails. Inloggen en foto\'s werken gewoon.',
+                'Finished. The site is a look-back: shop closed, floor plan locked, no reminder emails. Sign-in and photos still work.',
+              )
+            : t(
+                'Loopt. Shop en plattegrond zijn open en de wekelijkse nickname-herinnering gaat de deur uit.',
+                'Running. Shop and floor plan are open and the weekly nickname reminder goes out.',
+              )}
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          {!confirmEdition ? (
+            <button
+              type="button"
+              className={edition.finished ? 'btn-ghost' : 'btn-neon'}
+              disabled={busy !== '' || edition.finished === null}
+              onClick={() => setConfirmEdition(true)}
+            >
+              {edition.finished
+                ? t('Editie weer openzetten', 'Reopen the edition')
+                : t('Event is voorbij: zet alles stil', 'Event is over: shut it all down')}
+            </button>
+          ) : (
+            <>
+              <span className="self-center text-sm text-smoke">{t('Zeker weten?', 'Are you sure?')}</span>
+              <button
+                type="button"
+                className="btn-neon"
+                disabled={busy !== ''}
+                onClick={() =>
+                  void run(
+                    'editie',
+                    async () => {
+                      const r = await api.adminSetEdition(!edition.finished)
+                      edition.setFinished(r.finished)
+                    },
+                    async () => setConfirmEdition(false),
+                  )
+                }
+              >
+                {t('Ja', 'Yes')}
+              </button>
+              <button type="button" className="btn-ghost" onClick={() => setConfirmEdition(false)}>
+                {t('Nee', 'No')}
+              </button>
+            </>
+          )}
+        </div>
+      </section>
 
       <nav className="mt-8 flex flex-wrap justify-center gap-3" aria-label="Backstage">
         {tabs.map(({ key, label }) => (

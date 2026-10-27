@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { EDITION_FINISHED, PRODUCTS } from '../../shared/products'
+import { PRODUCTS } from '../../shared/products'
 import { api } from '../lib/api'
+import { useEdition } from '../lib/edition'
 import { useLang } from '../lib/i18n'
 import { useCopy } from '../theme'
 import ProductCard from '../components/ProductCard'
@@ -9,6 +10,7 @@ import ProductCard from '../components/ProductCard'
 export default function Shop() {
   const { t } = useLang()
   const c = useCopy()
+  const { finished } = useEdition()
   const [stock, setStock] = useState<Record<string, number | null>>()
   const [disabled, setDisabled] = useState<string[]>([])
   const [closed, setClosed] = useState<string[]>([])
@@ -36,7 +38,7 @@ export default function Shop() {
         </p>
       </header>
 
-      {EDITION_FINISHED ? (
+      {finished === null ? null : finished ? (
         <p className="neon-box mx-auto mt-10 max-w-2xl bg-velvet/60 p-6 text-center text-smoke">
           {c.wrapUp.shop}{' '}
           <Link to="/#nieuwsbrief" className="text-neon hover:underline">

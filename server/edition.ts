@@ -1,10 +1,13 @@
-import { EDITION_FINISHED } from '../shared/products'
+import { EDITION_YEAR } from '../shared/products'
 import type { Env } from './types'
 
 /**
- * Is de huidige editie voorbij (zie EDITION_FINISHED)? De tests zetten
- * EDITION_FORCE_OPEN=1 zodat ze de shop en plattegrond kunnen blijven testen.
+ * Is de huidige editie voorbij? Admins zetten dit in Backstage. Dan stoppen
+ * shop, plattegrond en de mails daaromheen; inloggen en foto's blijven werken.
  */
-export function editionFinished(env: Env): boolean {
-  return EDITION_FINISHED && env.EDITION_FORCE_OPEN !== '1'
+export async function editionFinished(env: Env): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT finished FROM edition_status WHERE edition = ?`)
+    .bind(EDITION_YEAR)
+    .first<{ finished: number }>()
+  return row?.finished === 1
 }

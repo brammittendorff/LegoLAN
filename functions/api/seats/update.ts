@@ -19,7 +19,7 @@ type SeatRow = { order_id: string | null; owner_email: string | null; nickname: 
  * alleen zijn naam wijzigen, niet de koppeling zelf.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. De plattegrond ligt vast.`, 409)
+  if (await editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. De plattegrond ligt vast.`, 409)
   let body: Body
   try {
     body = (await request.json()) as Body

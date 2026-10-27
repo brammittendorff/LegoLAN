@@ -27,7 +27,7 @@ type Body = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. Er valt niets meer te bestellen.`, 409)
+  if (await editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. Er valt niets meer te bestellen.`, 409)
   let body: Body
   try {
     body = (await request.json()) as Body

@@ -13,15 +13,6 @@ import { allSeatIds } from './seatmap'
 export const EDITION_YEAR = 2026
 
 /**
- * De jaarlijkse uit-knop: op true zodra het event voorbij is. Dan wordt de
- * homepage een terugblik, sluit de shop, ligt de plattegrond vast en stoppen
- * de mails rond de plattegrond (nickname-herinnering, plek-uitnodigingen).
- * Inloggen en foto's blijven gewoon werken. Nieuw seizoen: EDITION_YEAR
- * ophogen en deze weer op false.
- */
-export const EDITION_FINISHED = true
-
-/**
  * Gedeelde voorraadpotten: producten met dezelfde `pool` delen één voorraad.
  * De huur-PC's zijn fysiek dezelfde twee machines, of je ze nu 1 of 3 dagen huurt.
  */

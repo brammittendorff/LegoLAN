@@ -18,7 +18,7 @@ export type ThemeCopy = {
   marqueeWords: readonly string[]
   program: readonly { title: string; text: string }[]
   recap: { title: string; text: string }
-  /** Copy voor na afloop (zie EDITION_FINISHED in shared/products.ts). */
+  /** Copy voor na afloop (Backstage-knop "editie voorbij"). */
   wrapUp: { sub: string; cta: string; title: string; text: string; shop: string }
   smallPrint: string
 }

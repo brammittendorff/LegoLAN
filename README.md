@@ -131,8 +131,8 @@ in de bijbehorende map op Wasabi zetten. De plattegrond begint automatisch
 leeg (plekken zijn per editie); oude edities blijven zichtbaar op /account en
 in de foto-albums.
 
-**De jaarlijkse uit-knop:** `EDITION_FINISHED` in `shared/products.ts`. Op
-`true` zodra het event voorbij is:
+**De jaarlijkse uit-knop** staat bovenaan in Backstage: *Event is voorbij: zet
+alles stil*. Geen deploy nodig. Daarna:
 
 - homepage wordt een terugblik met een knop naar de foto's
 - shop toont geen producten en de checkout weigert alles
@@ -140,9 +140,9 @@ in de foto-albums.
   dus ook geen plek-uitnodigingen meer)
 - de wekelijkse nickname-herinnering (`reminders.yml`) mailt niemand meer
 
-Inloggen, accounts en foto's blijven gewoon werken. Nieuw seizoen:
-`EDITION_YEAR` ophogen en `EDITION_FINISHED` weer op `false`. (De tests
-draaien met `EDITION_FORCE_OPEN=1`, plus één test in de echte stand.)
+Inloggen, accounts en foto's blijven gewoon werken. De stand geldt per editie
+(tabel `edition_status`): na het ophogen van `EDITION_YEAR` begint het nieuwe
+jaar vanzelf open. Per ongeluk gedrukt? Dezelfde knop zet het weer open.
 
 ## Copy-regels
 

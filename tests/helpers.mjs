@@ -27,15 +27,16 @@ export const sessionCookie = async (email) => `legolan_sessie=${await makeToken(
 /**
  * Start een verse wrangler-instantie met eigen (lege) lokale D1.
  * mollieKey: 'fake' voor directe betalingen, of een echte test_-key.
- * finished: true = de echte EDITION_FINISHED-stand; standaard doen we alsof de
- * editie loopt, zodat shop en plattegrond testbaar blijven na het event.
+ * De migraties zetten de huidige editie mogelijk op "voorbij" (Backstage-knop);
+ * de tests beginnen altijd met een lopende editie.
  */
-export async function startServer({ port, mollieKey, finished = false }) {
+export async function startServer({ port, mollieKey }) {
   const persist = mkdtempSync(path.join(os.tmpdir(), 'legolan-test-'))
   execSync(`npx wrangler d1 migrations apply legolan --local --persist-to "${persist}"`, {
     stdio: 'ignore',
     env: { ...process.env, CI: 'true' },
   })
+  d1(persist, 'DELETE FROM edition_status')
   // Lokale mail-sink: vangt alles op wat de server via MAILPIT_URL "verstuurt".
   // Zonder deze binding laadt wrangler .dev.vars en gaat testmail echt via Mailjet
   // de deur uit (en vreet die de daglimiet van het account op).
@@ -59,7 +60,6 @@ export async function startServer({ port, mollieKey, finished = false }) {
       '--binding', `MAILPIT_URL=http://127.0.0.1:${mailSink.address().port}`,
       '--binding', 'MAILJET_API_KEY=',
       '--binding', 'MAILJET_API_SECRET=',
-      ...(finished ? [] : ['--binding', 'EDITION_FORCE_OPEN=1']),
     ],
     { stdio: process.env.TEST_DEBUG ? 'inherit' : 'ignore', detached: true },
   )
