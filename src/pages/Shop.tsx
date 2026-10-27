@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PRODUCTS } from '../../shared/products'
+import { EDITION_FINISHED, PRODUCTS } from '../../shared/products'
 import { api } from '../lib/api'
 import { useLang } from '../lib/i18n'
-import { THEME, useCopy } from '../theme'
+import { useCopy } from '../theme'
 import ProductCard from '../components/ProductCard'
 
 export default function Shop() {
@@ -36,7 +36,7 @@ export default function Shop() {
         </p>
       </header>
 
-      {THEME.finished ? (
+      {EDITION_FINISHED ? (
         <p className="neon-box mx-auto mt-10 max-w-2xl bg-velvet/60 p-6 text-center text-smoke">
           {c.wrapUp.shop}{' '}
           <Link to="/#nieuwsbrief" className="text-neon hover:underline">

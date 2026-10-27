@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { EDITION_FINISHED } from '../../shared/products'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useLang } from '../lib/i18n'
@@ -130,7 +131,7 @@ export default function Account() {
                     {t('bekijk de plattegrond', 'view the floor plan')}
                   </Link>
                 </>
-              ) : (
+              ) : EDITION_FINISHED ? null : (
                 <>
                   {t('Nog geen plek in de zaal geclaimd.', 'No seat in the hall claimed yet.')}{' '}
                   <Link to="/zaal" className="text-neon hover:underline">

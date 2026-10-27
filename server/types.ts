@@ -15,6 +15,8 @@ export interface Env {
   AUTH_SECRET?: string
   /** Gedeeld geheim waarmee de cron-workflows endpoints mogen aanroepen */
   CRON_SECRET?: string
+  /** Alleen voor tests: "1" = doe alsof de editie nog loopt (negeert EDITION_FINISHED) */
+  EDITION_FORCE_OPEN?: string
   /** Wasabi S3 met de foto's; map-per-editie (2024/, 2025/, ...) */
   WASABI_ENDPOINT?: string
   WASABI_REGION?: string

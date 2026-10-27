@@ -27,8 +27,10 @@ export const sessionCookie = async (email) => `legolan_sessie=${await makeToken(
 /**
  * Start een verse wrangler-instantie met eigen (lege) lokale D1.
  * mollieKey: 'fake' voor directe betalingen, of een echte test_-key.
+ * finished: true = de echte EDITION_FINISHED-stand; standaard doen we alsof de
+ * editie loopt, zodat shop en plattegrond testbaar blijven na het event.
  */
-export async function startServer({ port, mollieKey }) {
+export async function startServer({ port, mollieKey, finished = false }) {
   const persist = mkdtempSync(path.join(os.tmpdir(), 'legolan-test-'))
   execSync(`npx wrangler d1 migrations apply legolan --local --persist-to "${persist}"`, {
     stdio: 'ignore',
@@ -57,6 +59,7 @@ export async function startServer({ port, mollieKey }) {
       '--binding', `MAILPIT_URL=http://127.0.0.1:${mailSink.address().port}`,
       '--binding', 'MAILJET_API_KEY=',
       '--binding', 'MAILJET_API_SECRET=',
+      ...(finished ? [] : ['--binding', 'EDITION_FORCE_OPEN=1']),
     ],
     { stdio: process.env.TEST_DEBUG ? 'inherit' : 'ignore', detached: true },
   )

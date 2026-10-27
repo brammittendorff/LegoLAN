@@ -1,6 +1,7 @@
 import { EDITION_YEAR } from '../../../shared/products'
 import { buildRoom } from '../../../shared/seatmap'
 import { emailFromRequest, emailsFor } from '../../../server/auth'
+import { editionFinished } from '../../../server/edition'
 import { err, json } from '../../../server/http'
 import { getOrder } from '../../../server/orders'
 import { EMAIL_RE, sendSeatInvite } from '../../../server/seatInvite'
@@ -18,6 +19,7 @@ type SeatRow = { order_id: string | null; owner_email: string | null; nickname: 
  * alleen zijn naam wijzigen, niet de koppeling zelf.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  if (editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. De plattegrond ligt vast.`, 409)
   let body: Body
   try {
     body = (await request.json()) as Body

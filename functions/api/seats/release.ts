@@ -1,4 +1,5 @@
 import { EDITION_YEAR } from '../../../shared/products'
+import { editionFinished } from '../../../server/edition'
 import { err, json } from '../../../server/http'
 import { getOrder } from '../../../server/orders'
 import type { Env } from '../../../server/types'
@@ -10,6 +11,7 @@ type Body = { orderId?: string; seatId?: string }
  * via mail/bedankt-pagina) mag de plek van die bestelling weer loslaten.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  if (editionFinished(env)) return err(`LEGOLAN ${EDITION_YEAR} is voorbij. De plattegrond ligt vast.`, 409)
   let body: Body
   try {
     body = (await request.json()) as Body

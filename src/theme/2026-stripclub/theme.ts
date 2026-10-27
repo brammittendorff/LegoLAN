@@ -18,7 +18,7 @@ export type ThemeCopy = {
   marqueeWords: readonly string[]
   program: readonly { title: string; text: string }[]
   recap: { title: string; text: string }
-  /** Copy voor na afloop (zie THEME.finished). */
+  /** Copy voor na afloop (zie EDITION_FINISHED in shared/products.ts). */
   wrapUp: { sub: string; cta: string; title: string; text: string; shop: string }
   smallPrint: string
 }
@@ -176,8 +176,6 @@ const en: ThemeCopy = {
 
 export const THEME = {
   year: 2026,
-  // Na het event op true: homepage wordt een terugblik met link naar de foto's.
-  finished: true,
   name: 'LEGOLAN',
   scriptWord: 'stripclub', // het neon-krulwoord onder het logo
   socials: {

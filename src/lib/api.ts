@@ -112,7 +112,7 @@ export const api = {
       '/api/my/orders',
     ),
 
-  seats: () => req<{ seats: { seatId: string; nickname: string }[] }>('/api/seats'),
+  seats: () => req<{ seats: { seatId: string; nickname: string }[]; finished: boolean }>('/api/seats'),
 
   claimSeat: (payload: { orderId: string; seatId: string; nickname: string; email?: string }) =>
     post<{ ok: true; invited: boolean }>('/api/seats/claim', payload),

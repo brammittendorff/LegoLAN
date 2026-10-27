@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { EDITION_YEAR } from '../../shared/products'
+import { EDITION_FINISHED, EDITION_YEAR } from '../../shared/products'
 import { buildRoom, type Cell } from '../../shared/seatmap'
 import { api, type SeatClaim } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -42,6 +42,8 @@ export default function Zaal() {
   const paramOrder = params.get('order')
 
   const [claims, setClaims] = useState<Map<string, string>>(new Map())
+  // Editie voorbij (de server beslist): plattegrond is alleen nog een terugblik.
+  const [finished, setFinished] = useState(EDITION_FINISHED)
   const [orders, setOrders] = useState<ClaimOrder[]>([])
   const [nickname, setNickname] = useState(() => {
     try {
@@ -70,8 +72,9 @@ export default function Zaal() {
   }, [user])
 
   const refreshSeats = useCallback(async () => {
-    const { seats } = await api.seats()
+    const { seats, finished } = await api.seats()
     setClaims(new Map(seats.map((s) => [s.seatId, s.nickname])))
+    setFinished(finished)
   }, [])
 
   // Jouw bestellingen komen bij je sessie vandaan; de ?order=-link uit de
@@ -107,7 +110,7 @@ export default function Zaal() {
   }, [refreshSeats, loadOrders, user])
 
   const remaining = orders.reduce((n, o) => n + (o.seatQuota - o.seatsClaimed.length), 0)
-  const canClaim = remaining > 0
+  const canClaim = !finished && remaining > 0
   const seatOwner = new Map(orders.flatMap((o) => o.seatsClaimed.map((s) => [s.seatId, o.id])))
 
   const seatNos = useMemo(
@@ -316,7 +319,7 @@ export default function Zaal() {
     const taken = cell.seatId ? claims.get(cell.seatId) : undefined
     const mine = cell.seatId ? seatOwner.has(cell.seatId) : false
 
-    if (taken && mine) {
+    if (taken && mine && !finished) {
       return (
         <button
           key={key}
@@ -379,10 +382,15 @@ export default function Zaal() {
       <header className="text-center">
         <h1 className="neon-script text-6xl md:text-7xl">{t('de zaal', 'the hall')}</h1>
         <p className="mt-4 text-smoke/80">
-          {t(
-            'Kies waar je het weekend doorbrengt. Naast je vrienden, of juist niet.',
-            'Pick where you spend the weekend. Next to your friends, or deliberately not.',
-          )}
+          {finished
+            ? t(
+                `Zo zat de zaal tijdens LEGOLAN ${EDITION_YEAR}. De plattegrond ligt vast; tot volgend jaar.`,
+                `This is how the hall was seated at LEGOLAN ${EDITION_YEAR}. The floor plan is final; see you next year.`,
+              )
+            : t(
+                'Kies waar je het weekend doorbrengt. Naast je vrienden, of juist niet.',
+                'Pick where you spend the weekend. Next to your friends, or deliberately not.',
+              )}
         </p>
       </header>
 
@@ -492,7 +500,7 @@ export default function Zaal() {
             </div>
           )}
 
-          {mySeats.length > 0 && (
+          {!finished && mySeats.length > 0 && (
             <section className="neon-box mx-auto mt-8 max-w-xl bg-velvet/70 p-6">
               <h2 className="text-center font-label text-xs uppercase tracking-[0.25em] text-bulb">
                 {t('Jouw plekken', 'Your seats')}
@@ -569,7 +577,7 @@ export default function Zaal() {
             </section>
           )}
 
-          {!canClaim && mySeatCount > 0 && (
+          {!finished && !canClaim && mySeatCount > 0 && (
             <p className="mt-8 text-center text-smoke">
               {t(
                 'Al je plekken zijn geclaimd (goud op de kaart). Verkeerd geklikt? Klik op je gouden plek om hem vrij te geven.',
@@ -578,7 +586,7 @@ export default function Zaal() {
             </p>
           )}
 
-          {orders.length === 0 && (
+          {!finished && orders.length === 0 && (
             <p className="mt-8 text-center text-sm text-smoke/70">
               {t(
                 'Nog geen ticket voor deze editie? Dan eerst even langs',

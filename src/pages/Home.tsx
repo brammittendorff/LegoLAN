@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { EDITION_FINISHED } from '../../shared/products'
 import { THEME, useCopy } from '../theme'
 import { useLang } from '../lib/i18n'
 import MarqueeStrip from '../components/MarqueeStrip'
@@ -8,7 +9,7 @@ import PoleMinifig from '../components/PoleMinifig'
 export default function Home() {
   const { t } = useLang()
   const c = useCopy()
-  const done = THEME.finished
+  const done = EDITION_FINISHED
 
   const clubFeatures = [
     {

@@ -131,10 +131,18 @@ in de bijbehorende map op Wasabi zetten. De plattegrond begint automatisch
 leeg (plekken zijn per editie); oude edities blijven zichtbaar op /account en
 in de foto-albums.
 
-Event voorbij? Zet `finished: true` in het themabestand: de homepage wordt een
-terugblik met een knop naar de foto's en de shop toont geen producten meer.
-Zet de producten in Backstage ook op *gesloten*, dan weigert de server ze.
-Nieuw themabestand begint weer met `finished: false`.
+**De jaarlijkse uit-knop:** `EDITION_FINISHED` in `shared/products.ts`. Op
+`true` zodra het event voorbij is:
+
+- homepage wordt een terugblik met een knop naar de foto's
+- shop toont geen producten en de checkout weigert alles
+- plattegrond is alleen nog een terugblik (claimen/wijzigen/vrijgeven dicht,
+  dus ook geen plek-uitnodigingen meer)
+- de wekelijkse nickname-herinnering (`reminders.yml`) mailt niemand meer
+
+Inloggen, accounts en foto's blijven gewoon werken. Nieuw seizoen:
+`EDITION_YEAR` ophogen en `EDITION_FINISHED` weer op `false`. (De tests
+draaien met `EDITION_FORCE_OPEN=1`, plus één test in de echte stand.)
 
 ## Copy-regels
 

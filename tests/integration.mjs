@@ -671,4 +671,43 @@ try {
   stopServer(proc)
 }
 
+// Tweede stack in de echte "editie voorbij"-stand (alleen zinvol als
+// EDITION_FINISHED aan staat): niets bestellen, plattegrond dicht, geen mails.
+const dicht = await startServer({ port: PORT + 1, mollieKey: 'fake', finished: true })
+try {
+  await test('editie voorbij: shop, plattegrond en herinneringen staan stil', async () => {
+    const cookie = await sessionCookie('laat@test.nl')
+    const seats = await jsonReq(dicht.base, '/api/seats', { cookie })
+    if (!seats.data.finished) return // EDITION_FINISHED staat uit: niets te testen
+
+    const order = await jsonReq(dicht.base, '/api/checkout', {
+      method: 'POST',
+      body: {
+        firstName: 'Te', lastName: 'Laat', email: 'laat@test.nl', turnstileToken: 't',
+        items: [{ productId: 'ticket-weekend-2026', qty: 1 }],
+      },
+    })
+    assertEq(order.status, 409, 'checkout geweigerd')
+
+    for (const pad of ['claim', 'update', 'release']) {
+      const r = await jsonReq(dicht.base, `/api/seats/${pad}`, {
+        method: 'POST',
+        cookie,
+        body: { orderId: 'x', seatId: 'x', nickname: 'Laatkomer' },
+      })
+      assertEq(r.status, 409, `seats/${pad} geweigerd`)
+    }
+
+    // Iemand zonder nickname: zou normaal een herinnering krijgen.
+    d1(dicht.persist, "INSERT INTO users (email, updated_at) VALUES ('stil@test.nl', 0)")
+    const res = await fetch(`${dicht.base}/api/cron/nickname-reminder`, {
+      method: 'POST',
+      headers: { 'x-cron-key': 'ci-cron-secret' },
+    })
+    assertEq((await res.json()).sent, 0, 'geen nickname-herinnering')
+  })
+} finally {
+  stopServer(dicht.proc)
+}
+
 process.exitCode = summary('integratie') > 0 ? 1 : 0
